@@ -1,0 +1,24 @@
+{
+  "name": "Observolife",
+  "short_name": "Observolife",
+  "description": "Observe the patterns in your life.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f3ef",
+  "theme_color": "#1e2d4a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
