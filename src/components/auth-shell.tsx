@@ -39,29 +39,23 @@ export function AuthShell({
       </div>
 
       <div className="relative flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-y-auto overscroll-contain px-4 py-8 sm:items-center sm:px-8 sm:py-10 mobile-scroll-padding">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 55% at 50% -8%, rgba(90, 154, 143, 0.09), transparent 58%), radial-gradient(ellipse 60% 45% at 100% 100%, rgba(30, 45, 74, 0.06), transparent 55%), linear-gradient(180deg, #faf9f7 0%, #f3f0eb 48%, #ebe6df 100%)",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.4] [background-image:radial-gradient(circle_at_center,rgba(255,255,255,0.7)_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
+        <div className="auth-panel-gradient pointer-events-none absolute inset-0" />
+        <div className="auth-panel-dots pointer-events-none absolute inset-0" />
 
         <div className="relative z-10 w-full max-w-[420px] py-2">
           <div className="mb-8 lg:hidden">
             <div className="mb-6 flex items-center gap-3">
               <BrandIcon variant="tile" size={42} />
               <div>
-                <p className="text-sm font-semibold tracking-[-0.02em]">Observolife</p>
+                <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">Observolife</p>
                 <p className="text-xs text-muted-foreground">Observe your life</p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/80 bg-white/85 p-8 shadow-[0_8px_32px_rgba(30,45,74,0.08),0_2px_8px_rgba(30,45,74,0.04)] backdrop-blur-sm sm:p-10 dark:border-border dark:bg-card/90">
+          <div className="rounded-2xl border border-white/80 bg-white/85 p-8 shadow-[0_8px_32px_rgba(30,45,74,0.08),0_2px_8px_rgba(30,45,74,0.04)] backdrop-blur-sm sm:p-10 dark:border-border dark:bg-card dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)]">
             <div className="mb-8 space-y-1.5">
-              <h1 className="text-2xl font-semibold tracking-[-0.03em]">{title}</h1>
+              <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">{title}</h1>
               <p className="text-[0.9375rem] leading-relaxed text-muted-foreground">{subtitle}</p>
             </div>
             {children}

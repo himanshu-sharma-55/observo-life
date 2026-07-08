@@ -23,6 +23,7 @@ import {
   isOnline,
 } from "@/lib/offline/queue";
 import { isPortaledOverlay } from "@/lib/dom/portaled-overlay";
+import { isCoarsePointerDevice } from "@/lib/ui/coarse-pointer";
 import { cn } from "@/lib/utils";
 
 type LogMode = "moment" | "past" | "day";
@@ -233,6 +234,9 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
+      // iOS/Android keyboards can't do Shift+Enter — Return should add a new line.
+      if (isCoarsePointerDevice()) return;
+
       event.preventDefault();
       void handleSubmit();
       return;
@@ -270,6 +274,7 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
             onChange={(e) => setText(e.target.value)}
             onFocus={() => setExpanded(true)}
             onKeyDown={handleKeyDown}
+            enterKeyHint="enter"
             placeholder={
               isDayMode
                 ? "How was your day? One summary covers the whole day."
