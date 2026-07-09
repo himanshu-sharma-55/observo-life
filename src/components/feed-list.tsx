@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { readApiError } from "@/lib/api/client";
 import { EmptyState } from "@/components/empty-state";
 import { FeedInsightCard } from "@/components/feed-insight-card";
 import { FeedInsightPreview } from "@/components/feed-insight-preview";
+import { FeedListSkeleton } from "@/components/lazy-loading-skeletons";
+import { Button } from "@/components/ui/button";
 import type { EvidenceEvent } from "@/lib/feed/insight-format";
+import { FEED_PAGE_SIZE } from "@/lib/pagination";
 
 type FeedItem = {
   id: string;
@@ -32,29 +35,6 @@ type FeedRun = {
 
 type FeedScope = "current" | "overall";
 
-function FeedSkeleton() {
-  return (
-    <div className="space-y-4">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-2xl border border-border/70 bg-card p-6 shadow-[var(--shadow-soft)]">
-          <div className="mb-4 flex gap-3">
-            <div className="skeleton size-10 rounded-xl" />
-            <div className="space-y-2">
-              <div className="skeleton h-4 w-24 rounded-full" />
-              <div className="skeleton h-3 w-16 rounded-full" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="skeleton h-5 w-3/4" />
-            <div className="skeleton h-4 w-full" />
-            <div className="skeleton h-4 w-5/6" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function RunHeader({ scope, run }: { scope: FeedScope; run: FeedRun }) {
   if (scope === "current") {
     return (
@@ -74,13 +54,17 @@ function RunHeader({ scope, run }: { scope: FeedScope; run: FeedRun }) {
 export function FeedList({
   refreshKey = 0,
   scope = "current",
+  onLoadingChange,
 }: {
   refreshKey?: number;
   scope?: FeedScope;
+  onLoadingChange?: (loading: boolean) => void;
 }) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [run, setRun] = useState<FeedRun | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedEvidence, setExpandedEvidence] = useState<string | null>(null);
   const [evidenceEvents, setEvidenceEvents] = useState<Record<string, EvidenceEvent[]>>({});
@@ -92,10 +76,16 @@ export function FeedList({
 
     async function loadFeed() {
       setLoading(true);
+      onLoadingChange?.(true);
       setError(null);
 
       try {
-        const response = await fetch(`/api/feed?scope=${scope}`);
+        const params = new URLSearchParams({
+          scope,
+          limit: String(FEED_PAGE_SIZE),
+          skip: "0",
+        });
+        const response = await fetch(`/api/feed?${params.toString()}`);
         if (!response.ok) {
           throw new Error(await readApiError(response, "Could not load your feed."));
         }
@@ -103,6 +93,7 @@ export function FeedList({
         if (!cancelled) {
           setItems(data.items ?? []);
           setRun(data.run ?? null);
+          setHasMore(Boolean(data.hasMore));
           setExpandedEvidence(null);
           setEvidenceEvents({});
           setEvidenceLoading({});
@@ -111,9 +102,13 @@ export function FeedList({
       } catch (error) {
         if (!cancelled) {
           setError(error instanceof Error ? error.message : "Could not load your feed.");
+          setHasMore(false);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          onLoadingChange?.(false);
+        }
       }
     }
 
@@ -121,7 +116,32 @@ export function FeedList({
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, scope]);
+  }, [refreshKey, scope, onLoadingChange]);
+
+  async function loadMoreItems() {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({
+        scope,
+        limit: String(FEED_PAGE_SIZE),
+        skip: String(items.length),
+      });
+      const response = await fetch(`/api/feed?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Could not load more insights."));
+      }
+      const data = await response.json();
+      const nextItems = data.items ?? [];
+      setItems((current) => [...current, ...nextItems]);
+      setHasMore(Boolean(data.hasMore));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load more insights.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function dismissItem(id: string) {
     const previous = items;
@@ -184,7 +204,7 @@ export function FeedList({
     }
   }
 
-  if (loading) return <FeedSkeleton />;
+  if (loading) return <FeedListSkeleton />;
 
   if (error) {
     return (
@@ -242,6 +262,27 @@ export function FeedList({
           />
         );
       })}
+      {hasMore ? (
+        <div className="flex justify-center pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full touch-manipulation sm:h-9 sm:w-auto"
+            onClick={() => void loadMoreItems()}
+            disabled={loadingMore}
+            data-loading={loadingMore ? "" : undefined}
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Loading…
+              </>
+            ) : (
+              "Load more insights"
+            )}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

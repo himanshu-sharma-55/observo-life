@@ -1,6 +1,12 @@
 import { AppShell } from "@/components/app-shell";
-import { HypothesesPanel } from "@/components/hypotheses-panel";
+import { PanelSkeleton } from "@/components/lazy-loading-skeletons";
 import { PageHeader } from "@/components/page-header";
+import dynamic from "next/dynamic";
+
+const HypothesesPanel = dynamic(
+  () => import("@/components/hypotheses-panel").then((mod) => mod.HypothesesPanel),
+  { loading: () => <PanelSkeleton /> },
+);
 
 export default function HypothesesPage() {
   return (

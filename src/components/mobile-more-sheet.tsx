@@ -19,12 +19,6 @@ import {
 
 export type MoreNavItem = MobileNavItem;
 
-export function isMoreNavActive(pathname: string, pinnedHrefs: readonly string[]) {
-  return MOBILE_PINNABLE_NAV.filter((item) => !pinnedHrefs.includes(item.href)).some((item) =>
-    isMobileNavItemActive(pathname, item.href),
-  );
-}
-
 export function MobileMoreSheet({
   open,
   onOpenChange,

@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { format } from "date-fns";
-import { Calendar, Check, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { readApiError } from "@/lib/api/client";
 import type { SerializedSavedActivity } from "@/lib/activities/service";
@@ -11,12 +10,8 @@ import {
   appendActivityLines,
   removeActivityLine,
 } from "@/lib/activities/format";
-import { EventTagsField } from "@/components/event-tags-field";
-import { EventTagsBadges } from "@/components/event-tags-badges";
-import { EventText } from "@/components/event-text";
-import { ConfirmPopover } from "@/components/confirm-popover";
-import { InlineActivityChips, useSavedActivities } from "@/components/inline-activities";
-import { Badge } from "@/components/ui/badge";
+import { EventDayTimeline } from "@/components/event-day-timeline";
+import { useSavedActivities } from "@/components/inline-activities";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
@@ -27,29 +22,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { localDayEnd, localDayStart } from "@/lib/dates/day-bounds";
-import { eventLogKindLabel } from "@/lib/events/log-kind";
+import { groupEventsByDay, type TimelineEvent } from "@/lib/events/group-by-day";
 import { normalizeTags } from "@/lib/events/tags";
+import { EVENTS_PAGE_SIZE } from "@/lib/pagination";
 import { mobileCompactFieldClass } from "@/lib/ui/mobile-field";
 import { cn } from "@/lib/utils";
-
-type EventItem = {
-  id: string;
-  rawText: string;
-  occurredAt: string;
-  logKind: "moment" | "day";
-  tags: string[];
-  amount: string | null;
-  currency: string | null;
-};
+import { EventTimelineSkeleton } from "@/components/lazy-loading-skeletons";
 
 type SortOrder = "desc" | "asc";
 type DateFilterMode = "day" | "range";
 
 export function EventTimeline() {
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [filterMode, setFilterMode] = useState<DateFilterMode>("day");
   const [day, setDay] = useState("");
   const [from, setFrom] = useState("");
@@ -64,15 +52,19 @@ export function EventTimeline() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const activities = useSavedActivities(editingId !== null);
 
+  const dayGroups = useMemo(() => groupEventsByDay(events, sort), [events, sort]);
+
   const hasFilters =
     Boolean(tagFilter.trim()) ||
     (filterMode === "day" ? Boolean(day) : Boolean(from || to));
 
-  const loadEvents = useCallback(async () => {
-    setLoading(true);
-
-    try {
-      const params = new URLSearchParams({ limit: "100", sort });
+  const buildParams = useCallback(
+    (skip: number) => {
+      const params = new URLSearchParams({
+        limit: String(EVENTS_PAGE_SIZE),
+        sort,
+        skip: String(skip),
+      });
 
       if (filterMode === "day" && day) {
         params.set("from", localDayStart(day).toISOString());
@@ -85,22 +77,56 @@ export function EventTimeline() {
       const trimmedTag = tagFilter.trim();
       if (trimmedTag) params.set("tag", trimmedTag);
 
-      const response = await fetch(`/api/events?${params.toString()}`);
+      return params;
+    },
+    [day, filterMode, from, sort, tagFilter, to],
+  );
+
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/events?${buildParams(0).toString()}`);
       if (!response.ok) {
         toast.error(await readApiError(response, "Could not load events."));
         setEvents([]);
+        setHasMore(false);
         return;
       }
 
       const data = await response.json();
       setEvents(data.events ?? []);
+      setHasMore(Boolean(data.hasMore));
     } catch {
       toast.error("Could not reach the server.");
       setEvents([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [day, filterMode, from, sort, tagFilter, to]);
+  }, [buildParams]);
+
+  async function loadMoreEvents() {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const response = await fetch(`/api/events?${buildParams(events.length).toString()}`);
+      if (!response.ok) {
+        toast.error(await readApiError(response, "Could not load more events."));
+        return;
+      }
+
+      const data = await response.json();
+      const nextEvents = data.events ?? [];
+      setEvents((current) => [...current, ...nextEvents]);
+      setHasMore(Boolean(data.hasMore));
+    } catch {
+      toast.error("Could not reach the server.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     void loadEvents();
@@ -144,7 +170,7 @@ export function EventTimeline() {
     }
   }
 
-  function startEdit(event: EventItem) {
+  function startEdit(event: TimelineEvent) {
     setEditingId(event.id);
     setDraft(event.rawText);
     setTagsDraft(event.tags ?? []);
@@ -292,8 +318,8 @@ export function EventTimeline() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="desc">Newest</SelectItem>
-            <SelectItem value="asc">Oldest</SelectItem>
+            <SelectItem value="desc">Newest days</SelectItem>
+            <SelectItem value="asc">Oldest days</SelectItem>
           </SelectContent>
         </Select>
 
@@ -323,20 +349,15 @@ export function EventTimeline() {
 
         {!loading && (
           <span className="ml-auto text-xs text-muted-foreground">
-            {events.length} event{events.length === 1 ? "" : "s"}
+            {dayGroups.length} day{dayGroups.length === 1 ? "" : "s"} · {events.length} log
+            {events.length === 1 ? "" : "s"}
+            {hasMore ? "+" : ""}
           </span>
         )}
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="surface-card space-y-3 p-5">
-              <div className="skeleton h-4 w-3/4" />
-              <div className="skeleton h-3 w-32" />
-            </div>
-          ))}
-        </div>
+        <EventTimelineSkeleton />
       ) : events.length === 0 ? (
         <EmptyState
           icon={Calendar}
@@ -355,118 +376,45 @@ export function EventTimeline() {
           }
         />
       ) : (
-        <div className="space-y-3">
-          {events.map((event, index) => {
-            const isEditing = editingId === event.id;
-            const isSaving = savingId === event.id;
-            return (
-              <article
-                key={event.id}
-                className="surface-card-interactive animate-in-up group flex items-start justify-between gap-4 p-5"
-                style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
+        <div className="space-y-4">
+          <EventDayTimeline
+            groups={dayGroups}
+            editingId={editingId}
+            draft={draft}
+            tagsDraft={tagsDraft}
+            selectedActivityIds={selectedActivityIds}
+            savingId={savingId}
+            activities={activities}
+            onDraftChange={setDraft}
+            onTagsDraftChange={setTagsDraft}
+            onToggleActivity={toggleActivity}
+            onStartEdit={startEdit}
+            onCancelEdit={cancelEdit}
+            onSaveEdit={saveEdit}
+            onDelete={deleteEvent}
+            onTagClick={setTagFilter}
+          />
+          {hasMore ? (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full touch-manipulation sm:h-9 sm:w-auto"
+                onClick={() => void loadMoreEvents()}
+                disabled={loadingMore}
+                data-loading={loadingMore ? "" : undefined}
               >
-                {isEditing ? (
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <Textarea
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      rows={2}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                          e.preventDefault();
-                          void saveEdit(event.id);
-                        }
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                    />
-                    <InlineActivityChips
-                      activities={activities}
-                      selectedIds={selectedActivityIds}
-                      onToggle={toggleActivity}
-                    />
-                    <EventTagsField value={tagsDraft} onChange={setTagsDraft} />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => saveEdit(event.id)}
-                        disabled={isSaving || !draft.trim()}
-                      >
-                        {isSaving ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Check className="size-4" />
-                        )}
-                        Save
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSaving}>
-                        <X className="size-4" />
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading…
+                  </>
                 ) : (
-                  <div className="min-w-0 space-y-2.5">
-                    <EventText className="text-[0.9375rem] leading-relaxed text-foreground">
-                      {event.rawText}
-                    </EventText>
-                    <EventTagsBadges
-                      tags={event.tags}
-                      onTagClick={setTagFilter}
-                    />
-                    <div className="flex flex-wrap items-center gap-2">
-                      {event.logKind === "day" && (
-                        <Badge variant="outline" className="font-normal text-primary">
-                          {eventLogKindLabel(event.logKind)}
-                        </Badge>
-                      )}
-                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="size-3.5" />
-                        {event.logKind === "day"
-                          ? format(new Date(event.occurredAt), "MMM d, yyyy")
-                          : format(new Date(event.occurredAt), "MMM d, yyyy · h:mm a")}
-                      </span>
-                      {event.amount && (
-                        <Badge variant="outline" className="font-normal text-muted-foreground">
-                          {event.currency === "USD" ? "$" : "₹"}
-                          {Number(event.amount).toLocaleString()}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+                  "Load more events"
                 )}
-
-                {!isEditing && (
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Edit event"
-                      className="touch-manipulation hover:bg-muted hover:text-foreground"
-                      onClick={() => startEdit(event)}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                    <ConfirmPopover
-                      title="Delete this event?"
-                      description="It will be removed from your log."
-                      onConfirm={() => deleteEvent(event.id)}
-                      trigger={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Delete event"
-                          className="touch-manipulation hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      }
-                    />
-                  </div>
-                )}
-              </article>
-            );
-          })}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

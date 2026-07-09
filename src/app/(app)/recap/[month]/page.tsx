@@ -1,4 +1,10 @@
-import { MonthRecapStory } from "@/components/month-recap-story";
+import { PanelSkeleton } from "@/components/lazy-loading-skeletons";
+import dynamic from "next/dynamic";
+
+const MonthRecapStory = dynamic(
+  () => import("@/components/month-recap-story").then((mod) => mod.MonthRecapStory),
+  { loading: () => <PanelSkeleton /> },
+);
 
 export default async function RecapMonthPage({
   params,

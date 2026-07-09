@@ -5,12 +5,17 @@ import type { FeedScope } from "@/lib/db/models";
 import { requireUserId } from "@/lib/auth/session";
 import { dbErrorMessage } from "@/lib/db/serialize";
 import { serializeFeedItem } from "@/lib/feed/serialize-item";
+import { FEED_PAGE_SIZE, hasMoreResults } from "@/lib/pagination";
 
 export async function GET(request: Request) {
   try {
     const userId = await requireUserId();
     const { searchParams } = new URL(request.url);
     const scope = (searchParams.get("scope") ?? "current") as FeedScope;
+    const limitParam = searchParams.get("limit");
+    const skipParam = searchParams.get("skip");
+    const limit = limitParam ? Number(limitParam) : FEED_PAGE_SIZE;
+    const skip = skipParam ? Number(skipParam) : 0;
 
     if (scope !== "current" && scope !== "overall") {
       return NextResponse.json({ error: "Invalid scope" }, { status: 400 });
@@ -32,11 +37,12 @@ export async function GET(request: Request) {
       dismissedAt: null,
     })
       .sort({ createdAt: -1 })
-      .limit(50)
+      .skip(skip)
+      .limit(limit)
       .lean();
 
     // Fallback for legacy items without run linkage
-    if (items.length === 0) {
+    if (items.length === 0 && skip === 0) {
       items = await FeedItem.find({
         userId,
         source: "ai",
@@ -44,7 +50,7 @@ export async function GET(request: Request) {
         dismissedAt: null,
       })
         .sort({ createdAt: -1 })
-        .limit(50)
+        .limit(limit)
         .lean();
     }
 
@@ -59,6 +65,7 @@ export async function GET(request: Request) {
         overallWindowWeeks: latestRun.summary?.overallWeeks ?? 8,
       },
       items: items.map((item) => serializeFeedItem(item)),
+      hasMore: hasMoreResults(items.length, limit),
     });
   } catch (error) {
     if (error instanceof Response) return error;

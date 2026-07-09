@@ -15,7 +15,6 @@ import { InlineActivityChips, useSavedActivities } from "@/components/inline-act
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { parseBulkEvents } from "@/lib/events/parser";
 import { normalizeTags, rememberEventTags } from "@/lib/events/tags";
 import {
   enqueueOfflineEvent,
@@ -41,21 +40,6 @@ async function postEvent(payload: Record<string, unknown>) {
   }
 
   return data as { updated?: boolean };
-}
-
-async function postBulkEvent(payload: Record<string, unknown>) {
-  const response = await fetch("/api/events/bulk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error ?? "Failed to log events");
-  }
-
-  return response.json();
 }
 
 function todayDateInputValue() {
@@ -198,7 +182,7 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
           tags: tagsPayload,
         });
         toast.success(result.updated ? "Day summary updated." : "Day summary logged.");
-      } else if (!isOnline() && logMode === "moment" && parseBulkEvents(text).length <= 1) {
+      } else if (!isOnline() && logMode === "moment") {
         await enqueueOfflineEvent({ rawText: text, tags });
         toast.success("Saved offline. Will sync when you're back online.");
         rememberEventTags(tags);
@@ -212,10 +196,6 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
           tags: tagsPayload,
         });
         toast.success("Past event logged.");
-      } else if (parseBulkEvents(text).length > 1) {
-        const result = await postBulkEvent({ rawText: text, tags: tagsPayload });
-        const count = result.events?.length ?? 0;
-        toast.success(`Logged ${count} event${count === 1 ? "" : "s"}.`);
       } else {
         await postEvent({ rawText: text, tags: tagsPayload });
         toast.success("Event logged.");
@@ -254,17 +234,17 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
     }
   }
 
-  const lineCount = parseBulkEvents(text).length;
-  const bulkHint = logMode === "moment" && lineCount > 1;
   const isDayMode = logMode === "day";
 
   return (
     <div ref={containerRef} className="mb-9">
       <form
         onSubmit={handleSubmit}
+        aria-busy={loading}
         className={cn(
           "transition-all duration-200 ease-out",
           expanded ? "surface-composer-expanded" : "surface-composer hover:shadow-[var(--shadow-soft)]",
+          loading && "pointer-events-none opacity-90",
         )}
       >
         <div className={cn("px-4 transition-all", expanded ? "pt-4 pb-3" : "py-3")}>
@@ -282,6 +262,7 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
             }
             rows={expanded ? (isDayMode ? 4 : 3) : 1}
             autoComplete="off"
+            disabled={loading}
             className="min-h-0 resize-none border-0 bg-transparent px-0 py-0 text-[1.0625rem] leading-relaxed shadow-none transition-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
           />
 
@@ -335,7 +316,7 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
                 type="button"
                 variant={logMode === "day" ? "secondary" : "ghost"}
                 size="sm"
-                className="touch-manipulation gap-1.5 rounded-full font-normal text-muted-foreground data-[active=true]:text-foreground"
+                className="touch-manipulation gap-1.5 rounded-full font-normal text-muted-foreground active:scale-[0.98] active:bg-muted/80 data-[active=true]:text-foreground"
                 data-active={logMode === "day"}
                 onClick={() => switchLogMode(logMode === "day" ? "moment" : "day")}
               >
@@ -346,7 +327,7 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
                 type="button"
                 variant={logMode === "past" ? "secondary" : "ghost"}
                 size="sm"
-                className="touch-manipulation gap-1.5 rounded-full font-normal text-muted-foreground data-[active=true]:text-foreground"
+                className="touch-manipulation gap-1.5 rounded-full font-normal text-muted-foreground active:scale-[0.98] active:bg-muted/80 data-[active=true]:text-foreground"
                 data-active={logMode === "past"}
                 onClick={() => switchLogMode(logMode === "past" ? "moment" : "past")}
               >
@@ -356,8 +337,8 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
               <span className="hidden text-xs text-muted-foreground/90 sm:inline">
                 {isDayMode
                   ? "One summary for the day · Enter to save"
-                  : bulkHint
-                    ? `${lineCount} events · Enter logs all`
+                  : isCoarsePointerDevice()
+                    ? "Tap Log to save · Return for new line"
                     : "Enter to log · Shift+Enter for new line"}
               </span>
             </div>
@@ -365,7 +346,8 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
             <Button
               type="submit"
               size="sm"
-              className="w-full touch-manipulation rounded-full px-5 sm:ml-auto sm:w-auto"
+              data-loading={loading ? "" : undefined}
+              className="h-11 w-full min-w-[7.5rem] touch-manipulation rounded-full px-5 sm:ml-auto sm:h-8 sm:w-auto"
               disabled={
                 loading ||
                 !text.trim() ||
@@ -374,11 +356,12 @@ export function EventComposer({ onLogged }: { onLogged?: () => void }) {
               }
             >
               {loading ? (
-                <Loader2 className="size-4 animate-spin" />
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {isDayMode ? "Logging day…" : "Logging…"}
+                </>
               ) : isDayMode ? (
                 "Log day"
-              ) : bulkHint ? (
-                `Log ${lineCount}`
               ) : (
                 "Log"
               )}

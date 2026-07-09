@@ -1,6 +1,12 @@
 import { AppShell } from "@/components/app-shell";
-import { ActivitiesPanel } from "@/components/activities-panel";
+import { PanelSkeleton } from "@/components/lazy-loading-skeletons";
 import { PageHeader } from "@/components/page-header";
+import dynamic from "next/dynamic";
+
+const ActivitiesPanel = dynamic(
+  () => import("@/components/activities-panel").then((mod) => mod.ActivitiesPanel),
+  { loading: () => <PanelSkeleton /> },
+);
 
 export default function ActivitiesPage() {
   return (

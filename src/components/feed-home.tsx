@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { EventComposer } from "@/components/event-composer";
-import { FeedList } from "@/components/feed-list";
 import { FeedInsightPreview } from "@/components/feed-insight-preview";
+import {
+  EventComposerSkeleton,
+  FeedListSkeleton,
+} from "@/components/lazy-loading-skeletons";
 import { OnboardingHint } from "@/components/onboarding-hint";
 import { RecapHero } from "@/components/recap-hero";
 import { Button } from "@/components/ui/button";
@@ -25,6 +28,16 @@ import {
   type AiFeedOptions,
 } from "@/lib/feed/ai-options";
 import { cn } from "@/lib/utils";
+
+const EventComposer = dynamic(
+  () => import("@/components/event-composer").then((mod) => mod.EventComposer),
+  { loading: () => <EventComposerSkeleton /> },
+);
+
+const FeedList = dynamic(
+  () => import("@/components/feed-list").then((mod) => mod.FeedList),
+  { loading: () => <FeedListSkeleton /> },
+);
 
 const ONBOARDING_KEY = "observolife.onboarding.dismissed";
 
@@ -105,6 +118,7 @@ function persistAiOptions(options: AiFeedOptions) {
 export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [scope, setScope] = useState<FeedScope>("current");
+  const [feedLoading, setFeedLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -112,6 +126,10 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
   const [aiOptions, setAiOptions] = useState<AiFeedOptions>(DEFAULT_AI_FEED_OPTIONS);
 
   const canGenerate = aiOptions.includeCurrent || aiOptions.includeOverall;
+
+  const handleFeedLoadingChange = useCallback((loading: boolean) => {
+    setFeedLoading(loading);
+  }, []);
 
   const loadEligible = useCallback(async () => {
     try {
@@ -214,14 +232,16 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
 
       <section>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="inline-flex w-full rounded-lg border border-border bg-muted/40 p-0.5 sm:w-auto">
+          <div className="inline-flex w-full items-center gap-2 sm:w-auto">
+            <div className="inline-flex min-w-0 flex-1 rounded-lg border border-border bg-muted/40 p-0.5 sm:flex-none">
             {(["current", "overall"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setScope(tab)}
+                disabled={feedLoading && scope === tab}
                 className={cn(
-                  "flex-1 rounded-md px-3 py-2 text-xs font-semibold capitalize transition-colors sm:flex-none sm:py-1.5",
+                  "flex-1 touch-manipulation rounded-md px-3 py-2.5 text-xs font-semibold capitalize transition-all active:scale-[0.98] sm:flex-none sm:py-1.5",
                   scope === tab
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -230,6 +250,10 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
                 {tab}
               </button>
             ))}
+            </div>
+            {feedLoading ? (
+              <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-label="Loading feed" />
+            ) : null}
           </div>
           <div className="h-px min-w-0 flex-1 bg-border max-sm:hidden" />
           {aiEnabled ? (
@@ -238,7 +262,8 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
             size="sm"
             onClick={openConfirmDialog}
             disabled={generating}
-            className="w-full touch-manipulation gap-1.5 sm:ml-auto sm:w-auto"
+            data-loading={generating ? "" : undefined}
+            className="h-11 w-full touch-manipulation gap-1.5 sm:ml-auto sm:h-8 sm:w-auto"
           >
             {generating ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -249,7 +274,11 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
           </Button>
           ) : null}
         </div>
-        <FeedList refreshKey={refreshKey} scope={scope} />
+        <FeedList
+          refreshKey={refreshKey}
+          scope={scope}
+          onLoadingChange={handleFeedLoadingChange}
+        />
       </section>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

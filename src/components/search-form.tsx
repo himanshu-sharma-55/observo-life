@@ -6,6 +6,7 @@ import { Loader2, Search, SearchX } from "lucide-react";
 import { readApiError } from "@/lib/api/client";
 import { SIGNAL_MAP } from "@/lib/aggregates/signals";
 import { localDayEnd, localDayStart } from "@/lib/dates/day-bounds";
+import { SEARCH_PAGE_SIZE } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { EventTagsBadges } from "@/components/event-tags-badges";
 import { EventText } from "@/components/event-text";
@@ -34,32 +35,62 @@ export function SearchForm() {
   const [minAmount, setMinAmount] = useState("");
   const [results, setResults] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function buildSearchParams(searchQuery: string, skip: number) {
+    const params = new URLSearchParams({
+      limit: String(SEARCH_PAGE_SIZE),
+      skip: String(skip),
+    });
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (from) params.set("from", localDayStart(from).toISOString());
+    if (to) params.set("to", localDayEnd(to).toISOString());
+    if (minAmount) params.set("minAmount", minAmount);
+    return params;
+  }
 
   async function runSearch(searchQuery: string) {
     setLoading(true);
     setError(null);
     setSearched(true);
 
-    const params = new URLSearchParams();
-    if (searchQuery.trim()) params.set("q", searchQuery.trim());
-    if (from) params.set("from", localDayStart(from).toISOString());
-    if (to) params.set("to", localDayEnd(to).toISOString());
-    if (minAmount) params.set("minAmount", minAmount);
-
     try {
-      const response = await fetch(`/api/search?${params.toString()}`);
+      const response = await fetch(`/api/search?${buildSearchParams(searchQuery, 0).toString()}`);
       if (!response.ok) {
         throw new Error(await readApiError(response, "Could not search your events."));
       }
       const data = await response.json();
       setResults(data.events ?? []);
+      setHasMore(Boolean(data.hasMore));
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not search your events.");
       setResults([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMoreResults() {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const response = await fetch(`/api/search?${buildSearchParams(query, results.length).toString()}`);
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Could not load more results."));
+      }
+      const data = await response.json();
+      const nextResults = data.events ?? [];
+      setResults((current) => [...current, ...nextResults]);
+      setHasMore(Boolean(data.hasMore));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not load more results.");
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -183,7 +214,7 @@ export function SearchForm() {
       {!loading && results.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {results.length} event{results.length === 1 ? "" : "s"} found
+            {results.length} event{results.length === 1 ? "" : "s"} found{hasMore ? "+" : ""}
           </p>
           {results.map((event, index) => (
             <article
@@ -211,6 +242,27 @@ export function SearchForm() {
               </div>
             </article>
           ))}
+          {hasMore ? (
+            <div className="flex justify-center pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full touch-manipulation sm:h-9 sm:w-auto"
+                onClick={() => void loadMoreResults()}
+                disabled={loadingMore}
+                data-loading={loadingMore ? "" : undefined}
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading…
+                  </>
+                ) : (
+                  "Load more results"
+                )}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

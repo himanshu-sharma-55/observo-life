@@ -1,9 +1,15 @@
 import { AppShell } from "@/components/app-shell";
-import { SettingsForm } from "@/components/settings-form";
+import { PanelSkeleton } from "@/components/lazy-loading-skeletons";
 import { PageHeader } from "@/components/page-header";
 import { auth } from "@/lib/auth";
 import { isAiConfigured } from "@/lib/ai/client";
 import { isAiEnabledForUser } from "@/lib/ai/access";
+import dynamic from "next/dynamic";
+
+const SettingsForm = dynamic(
+  () => import("@/components/settings-form").then((mod) => mod.SettingsForm),
+  { loading: () => <PanelSkeleton /> },
+);
 
 export default async function SettingsPage() {
   const session = await auth();

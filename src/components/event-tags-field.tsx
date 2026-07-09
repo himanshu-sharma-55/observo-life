@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Check, Plus, Tag, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { tagChipClass } from "@/lib/events/tag-style";
 import {
   loadRecentEventTags,
   MAX_EVENT_TAGS,
@@ -293,16 +293,15 @@ export function EventTagsField({ value, onChange, className }: EventTagsFieldPro
             }}
           >
             {value.map((tag) => (
-              <Badge
+              <span
                 key={tag}
-                variant="secondary"
-                className="h-6 gap-1 rounded-full pr-1 pl-2 font-normal"
+                className={cn(tagChipClass(tag), "gap-1")}
               >
                 {tag}
                 <button
                   type="button"
                   aria-label={`Remove ${tag}`}
-                  className="rounded-full p-0.5 hover:bg-foreground/10"
+                  className="rounded-full p-0.5 transition-colors hover:bg-foreground/10"
                   onClick={(event) => {
                     event.stopPropagation();
                     removeTag(tag);
@@ -310,7 +309,7 @@ export function EventTagsField({ value, onChange, className }: EventTagsFieldPro
                 >
                   <X className="size-3" />
                 </button>
-              </Badge>
+              </span>
             ))}
 
             {!atLimit && (

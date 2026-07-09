@@ -81,6 +81,12 @@ export function isMobileNavItemActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+export function isMoreNavActive(pathname: string, pinnedHrefs: readonly string[]) {
+  return MOBILE_PINNABLE_NAV.filter((item) => !pinnedHrefs.includes(item.href)).some((item) =>
+    isMobileNavItemActive(pathname, item.href),
+  );
+}
+
 export function resolveMobileNavPins(stored: string[] | null | undefined): string[] {
   const allowed = new Set(MOBILE_PINNABLE_NAV.map((item) => item.href));
   const pins = (stored ?? MOBILE_NAV_DEFAULT_PINS).filter((href) => allowed.has(href));

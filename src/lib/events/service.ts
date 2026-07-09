@@ -201,6 +201,7 @@ export async function listEvents(userId: string, options?: SearchOptions): Promi
 
   const docs = await Event.find(filter)
     .sort({ occurredAt: options?.sort === "asc" ? 1 : -1 })
+    .skip(options?.skip ?? 0)
     .limit(options?.limit ?? 100)
     .lean();
 

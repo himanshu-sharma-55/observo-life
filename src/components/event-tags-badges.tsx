@@ -1,7 +1,7 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { normalizeTags } from "@/lib/events/tags";
+import { tagChipClass } from "@/lib/events/tag-style";
 import { cn } from "@/lib/utils";
 
 type EventTagsBadgesProps = {
@@ -22,14 +22,14 @@ export function EventTagsBadges({ tags, onTagClick, className }: EventTagsBadges
             key={tag}
             type="button"
             onClick={() => onTagClick(tag)}
-            className="inline-flex h-[1.375rem] items-center rounded-md border border-transparent bg-secondary px-2 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
+            className={cn(tagChipClass(tag, true), "touch-manipulation")}
           >
             #{tag}
           </button>
         ) : (
-          <Badge key={tag} variant="secondary" className="font-normal">
+          <span key={tag} className={tagChipClass(tag)}>
             #{tag}
-          </Badge>
+          </span>
         ),
       )}
     </div>

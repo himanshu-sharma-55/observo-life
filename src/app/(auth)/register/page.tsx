@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/auth-shell";
+import { AuthSubmitButton } from "@/components/auth-submit-button";
 import { GoogleAuth } from "@/components/google-auth";
 import { registerUser } from "@/lib/auth/actions";
 
@@ -70,9 +70,7 @@ export default async function RegisterPage({
           />
           <p className="text-xs text-muted-foreground">At least 8 characters.</p>
         </div>
-        <Button type="submit" size="lg" className="w-full">
-          Create account
-        </Button>
+        <AuthSubmitButton label="Create account" pendingLabel="Creating account…" />
       </form>
 
       <GoogleAuth label="Sign up with Google" />

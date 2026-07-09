@@ -1,26 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import dynamic from "next/dynamic";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
   LayoutGrid,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandIcon } from "@/components/brand-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileMenu } from "@/components/profile-menu";
-import {
-  isMoreNavActive,
-  MobileMoreSheet,
-} from "@/components/mobile-more-sheet";
 import { useMobileNavPins } from "@/lib/hooks/use-mobile-nav-pins";
 import {
+  isMoreNavActive,
   MOBILE_HOME_NAV,
   MOBILE_PINNABLE_NAV,
 } from "@/lib/mobile-nav/config";
+
+const MobileMoreSheet = dynamic(
+  () => import("@/components/mobile-more-sheet").then((mod) => mod.MobileMoreSheet),
+  { ssr: false },
+);
 
 const sidebarNavItems = [
   { href: "/", label: "Feed", icon: Home },
@@ -101,6 +105,28 @@ function SidebarLink({
   );
 }
 
+function MobileNavIcon({
+  icon: Icon,
+  active,
+}: {
+  icon: LucideIcon;
+  active: boolean;
+}) {
+  const { pending } = useLinkStatus();
+
+  if (pending) {
+    return <Loader2 className="size-[1.35rem] animate-spin text-primary" aria-hidden />;
+  }
+
+  return (
+    <Icon
+      className="size-[1.35rem]"
+      strokeWidth={active ? 2.25 : 1.75}
+      aria-hidden
+    />
+  );
+}
+
 function MobileNavLink({
   href,
   label,
@@ -118,14 +144,11 @@ function MobileNavLink({
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center justify-center rounded-xl py-2 transition-all duration-150 active:scale-90",
+        "flex items-center justify-center rounded-xl py-2 transition-all duration-150 active:scale-90 active:bg-primary/10",
         active ? "text-primary" : "text-muted-foreground",
       )}
     >
-      <Icon
-        className="size-[1.35rem]"
-        strokeWidth={active ? 2.25 : 1.75}
-      />
+      <MobileNavIcon icon={Icon} active={active} />
     </Link>
   );
 }
@@ -138,7 +161,7 @@ function MobileMoreButton({ active, onClick }: { active: boolean; onClick: () =>
       aria-label="More"
       aria-expanded={active}
       className={cn(
-        "flex items-center justify-center rounded-xl py-2 transition-all duration-150 active:scale-90",
+        "flex items-center justify-center rounded-xl py-2 transition-all duration-150 active:scale-90 active:bg-primary/10",
         active ? "text-primary" : "text-muted-foreground",
       )}
     >

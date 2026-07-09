@@ -7,5 +7,14 @@ type EventTextProps = {
 };
 
 export function EventText({ children, className, as: Tag = "p" }: EventTextProps) {
-  return <Tag className={cn("whitespace-pre-wrap", className)}>{children}</Tag>;
+  return (
+    <Tag
+      className={cn(
+        "whitespace-pre-wrap text-base leading-[1.65] text-foreground sm:text-[0.9375rem] sm:leading-relaxed",
+        className,
+      )}
+    >
+      {children}
+    </Tag>
+  );
 }

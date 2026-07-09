@@ -1,6 +1,12 @@
 import { AppShell } from "@/components/app-shell";
-import { SearchForm } from "@/components/search-form";
+import { PanelSkeleton } from "@/components/lazy-loading-skeletons";
 import { PageHeader } from "@/components/page-header";
+import dynamic from "next/dynamic";
+
+const SearchForm = dynamic(
+  () => import("@/components/search-form").then((mod) => mod.SearchForm),
+  { loading: () => <PanelSkeleton /> },
+);
 
 export default function SearchPage() {
   return (

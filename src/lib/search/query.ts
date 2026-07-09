@@ -10,6 +10,7 @@ export type SearchOptions = {
   minAmount?: number;
   tag?: string;
   limit?: number;
+  skip?: number;
   sort?: "asc" | "desc";
 };
 
@@ -20,12 +21,17 @@ export async function searchEvents(userId: string, options: SearchOptions) {
   await connectToDatabase();
 
   const limit = options.limit ?? 50;
+  const skip = options.skip ?? 0;
   const query = options.q?.trim();
 
   // No text query -> plain filtered find.
   if (!query) {
     const filter = buildFilter(userId, options);
-    return Event.find(filter).sort({ occurredAt: sortOrder(options) }).limit(limit).lean();
+    return Event.find(filter)
+      .sort({ occurredAt: sortOrder(options) })
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 
   // Text query -> Atlas Search aggregation with structured filters.
@@ -69,6 +75,7 @@ export async function searchEvents(userId: string, options: SearchOptions) {
     // so apply remaining predicates with a normal $match stage.
     { $match: buildMatch(options) },
     { $sort: { occurredAt: -1 } },
+    ...(skip > 0 ? [{ $skip: skip }] : []),
     { $limit: limit },
   ];
 
@@ -82,7 +89,11 @@ export async function searchEvents(userId: string, options: SearchOptions) {
 
     const filter = buildFilter(userId, options);
     filter.rawText = { $regex: escapeRegex(query), $options: "i" };
-    return Event.find(filter).sort({ occurredAt: sortOrder(options) }).limit(limit).lean();
+    return Event.find(filter)
+      .sort({ occurredAt: sortOrder(options) })
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 }
 

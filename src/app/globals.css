@@ -20,6 +20,7 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
+  --color-timeline-moment: var(--timeline-moment);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
@@ -81,6 +82,27 @@
   --chart-3: oklch(0.68 0.12 145);
   --chart-4: oklch(0.72 0.14 85);
   --chart-5: oklch(0.585 0.21 27);
+  --timeline-moment: oklch(0.5 0.09 228);
+  --timeline-moment-muted: oklch(0.96 0.022 228);
+  --timeline-moment-border: oklch(0.84 0.05 228);
+  --tag-tone-0-bg: oklch(0.96 0.03 256);
+  --tag-tone-0-border: oklch(0.84 0.06 256);
+  --tag-tone-0-fg: oklch(0.46 0.1 256);
+  --tag-tone-1-bg: oklch(0.96 0.025 228);
+  --tag-tone-1-border: oklch(0.84 0.05 228);
+  --tag-tone-1-fg: oklch(0.46 0.09 228);
+  --tag-tone-2-bg: oklch(0.96 0.028 205);
+  --tag-tone-2-border: oklch(0.84 0.055 205);
+  --tag-tone-2-fg: oklch(0.44 0.09 205);
+  --tag-tone-3-bg: oklch(0.97 0.035 85);
+  --tag-tone-3-border: oklch(0.86 0.07 85);
+  --tag-tone-3-fg: oklch(0.48 0.1 75);
+  --tag-tone-4-bg: oklch(0.96 0.03 305);
+  --tag-tone-4-border: oklch(0.84 0.06 305);
+  --tag-tone-4-fg: oklch(0.46 0.1 305);
+  --tag-tone-5-bg: oklch(0.97 0.03 25);
+  --tag-tone-5-border: oklch(0.86 0.06 25);
+  --tag-tone-5-fg: oklch(0.48 0.1 25);
   --radius: 0.625rem;
   --sidebar: oklch(0.99 0.002 250);
   --sidebar-foreground: oklch(0.4 0.012 256);
@@ -121,6 +143,8 @@
   --sidebar-accent-foreground: oklch(0.92 0.03 256);
   --sidebar-border: oklch(0.3 0.012 256);
   --sidebar-ring: oklch(0.66 0.15 256);
+  --chart-2: oklch(0.72 0.11 195);
+  --chart-3: oklch(0.76 0.1 150);
 }
 
 @layer base {
@@ -314,6 +338,52 @@
     box-shadow:
       0 8px 32px rgb(0 0 0 / 0.35),
       0 1px 0 rgb(255 255 255 / 0.06) inset;
+  }
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.35;
+    transition: opacity 150ms ease;
+  }
+
+  @media (min-width: 640px) {
+    .tag-chip {
+      font-size: 0.75rem;
+      line-height: 1.25;
+    }
+  }
+
+  .tag-chip-interactive:hover {
+    opacity: 0.75;
+  }
+
+  .tag-chip-tone-0 {
+    color: var(--tag-tone-0-fg);
+  }
+
+  .tag-chip-tone-1 {
+    color: var(--tag-tone-1-fg);
+  }
+
+  .tag-chip-tone-2 {
+    color: var(--tag-tone-2-fg);
+  }
+
+  .tag-chip-tone-3 {
+    color: var(--tag-tone-3-fg);
+  }
+
+  .tag-chip-tone-4 {
+    color: var(--tag-tone-4-fg);
+  }
+
+  .tag-chip-tone-5 {
+    color: var(--tag-tone-5-fg);
   }
 }
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/auth-shell";
+import { AuthSubmitButton } from "@/components/auth-submit-button";
 import { GoogleAuth } from "@/components/google-auth";
 import { loginUser } from "@/lib/auth/actions";
 
@@ -47,9 +47,7 @@ export default async function LoginPage({
             className="h-11"
           />
         </div>
-        <Button type="submit" size="lg" className="w-full">
-          Sign in
-        </Button>
+        <AuthSubmitButton label="Sign in" pendingLabel="Signing in…" />
       </form>
 
       <GoogleAuth label="Continue with Google" />
