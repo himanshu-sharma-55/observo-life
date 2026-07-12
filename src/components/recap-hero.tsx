@@ -41,10 +41,10 @@ export function RecapHero({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ month: eligible!.month }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        toast.error(await readApiError(response, "Could not generate month insights."));
+        toast.error(data.error?.trim() || "Could not generate month insights.");
         return;
       }
 

@@ -21,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { readApiError } from "@/lib/api/client";
 import {
   AI_FEED_OPTIONS_STORAGE_KEY,
   DEFAULT_AI_FEED_OPTIONS,
@@ -157,10 +156,14 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ options: aiOptions }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        currentInserted?: number;
+        overallInserted?: number;
+      };
 
       if (!response.ok) {
-        toast.error(await readApiError(response, "Could not generate insights."));
+        toast.error(data.error?.trim() || "Could not generate insights.");
         return;
       }
 

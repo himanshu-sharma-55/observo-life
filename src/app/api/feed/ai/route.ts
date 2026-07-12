@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { requireAiUserId } from "@/lib/ai/access";
 import { isAiConfigured } from "@/lib/ai/client";
 import { aiRouteErrorResponse } from "@/lib/ai/route-errors";
@@ -47,8 +48,14 @@ export async function POST(request: Request) {
     if (error instanceof Response) return error;
     const aiError = aiRouteErrorResponse(error);
     if (aiError) return aiError;
+    if (error instanceof ZodError) {
+      const message = error.issues[0]?.message ?? "AI returned an invalid response format.";
+      console.error("[api/feed/ai] validation failed", error.issues);
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
     const message =
       error instanceof Error ? error.message : "Failed to generate AI insights.";
+    console.error("[api/feed/ai]", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

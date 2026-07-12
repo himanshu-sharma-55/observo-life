@@ -37,7 +37,7 @@ import {
 import {
   GEMINI_MODEL,
   INSIGHTS_RESPONSE_SCHEMA,
-  InsightsSchema,
+  parseInsightsJson,
   filterEvidence,
 } from "@/lib/feed/schemas";
 
@@ -216,7 +216,7 @@ export async function generateAiFeed(
         prompt: buildCurrentPrompt(aggregates, priorCurrent, promptContext),
         responseSchema: INSIGHTS_RESPONSE_SCHEMA,
       });
-      const parsedCurrent = InsightsSchema.parse(JSON.parse(rawCurrent));
+      const parsedCurrent = parseInsightsJson(rawCurrent);
       const validCurrent = new Set(aggregates.currentEvents.map((e) => e.id));
       currentInsights = filterEvidence(parsedCurrent.insights, validCurrent);
     }
@@ -232,7 +232,7 @@ export async function generateAiFeed(
         }),
         responseSchema: INSIGHTS_RESPONSE_SCHEMA,
       });
-      const parsedOverall = InsightsSchema.parse(JSON.parse(rawOverall));
+      const parsedOverall = parseInsightsJson(rawOverall);
       const windowStart = startOfDay(subDays(new Date(), OVERALL_WEEKS * 7));
       const windowEnd = endOfDay(new Date());
       const windowEvents = await loadEventsForRange(userId, windowStart, windowEnd);
