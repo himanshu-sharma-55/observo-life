@@ -29,11 +29,18 @@ export const GEMINI_TIMEOUT_MS = 60_000;
 export const GEMINI_MAX_OUTPUT_TOKENS = 4096;
 export const GEMINI_MAX_RETRIES = 2;
 
-/** Default model for feed insights and month recaps (override via GEMINI_MODEL). */
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
+/**
+ * Default model for feed insights and month recaps (override via GEMINI_MODEL).
+ * Uses Google's rolling "latest" alias so new API keys aren't pinned to
+ * deprecated model IDs like gemini-2.5-flash.
+ */
+export const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+
+/** Used when the configured model returns 404 (deprecated / unavailable). */
+export const FALLBACK_GEMINI_MODEL = "gemini-flash-latest";
 
 export function getGeminiModel() {
-  return process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+  return process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
 }
 
 export const PROMPT_VERSION = "2026-06-22-v4";

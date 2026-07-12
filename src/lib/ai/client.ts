@@ -1,4 +1,5 @@
 import {
+  FALLBACK_GEMINI_MODEL,
   GEMINI_MAX_OUTPUT_TOKENS,
   GEMINI_MAX_RETRIES,
   GEMINI_TIMEOUT_MS,
@@ -31,6 +32,40 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function parseGeminiErrorBody(detail: string): string | null {
+  try {
+    const parsed = JSON.parse(detail) as { error?: { message?: string } };
+    return parsed.error?.message?.trim() ?? null;
+  } catch {
+    return detail.trim() || null;
+  }
+}
+
+export function formatGeminiApiError(status: number, detail: string, model: string): string {
+  const message = parseGeminiErrorBody(detail);
+
+  if (status === 404) {
+    if (message?.includes("no longer available")) {
+      return `Gemini model "${model}" is no longer available. Set GEMINI_MODEL=${FALLBACK_GEMINI_MODEL} in your environment.`;
+    }
+    return message ?? `Gemini model "${model}" was not found.`;
+  }
+
+  if (status === 429) {
+    return "Gemini API quota exceeded. Wait a few minutes and try again, or check your usage at ai.google.dev.";
+  }
+
+  if (status === 403) {
+    return message ?? "Gemini API key is invalid or does not have access to this model.";
+  }
+
+  return message ?? `Gemini request failed (${status}).`;
+}
+
+function isDeprecatedModelError(status: number, detail: string) {
+  return status === 404 && detail.includes("no longer available");
+}
+
 async function fetchWithTimeout(
   url: string,
   init: RequestInit,
@@ -51,31 +86,12 @@ async function fetchWithTimeout(
   }
 }
 
-/**
- * Calls the Gemini Developer API and returns the raw text of the first
- * candidate. When a responseSchema is provided we force JSON output so the
- * caller can parse + validate it.
- */
-export async function generateStructured({
-  system,
-  prompt,
-  responseSchema,
-}: GenerateOptions): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new AiNotConfiguredError();
-
-  const url = `${GEMINI_ENDPOINT}/${getGeminiModel()}:generateContent`;
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-      responseMimeType: "application/json",
-      ...(responseSchema ? { responseSchema } : {}),
-    },
-  });
-
+async function callGeminiModel(
+  model: string,
+  apiKey: string,
+  body: string,
+): Promise<string> {
+  const url = `${GEMINI_ENDPOINT}/${model}:generateContent`;
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
@@ -99,9 +115,9 @@ export async function generateStructured({
 
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
-        const error = new Error(
-          `Gemini request failed (${response.status}): ${detail.slice(0, 500)}`,
-        );
+        const error = new Error(formatGeminiApiError(response.status, detail, model));
+        (error as Error & { status?: number; detail?: string }).status = response.status;
+        (error as Error & { status?: number; detail?: string }).detail = detail;
 
         if (RETRYABLE_STATUSES.has(response.status) && attempt < GEMINI_MAX_RETRIES) {
           lastError = error;
@@ -132,4 +148,48 @@ export async function generateStructured({
   }
 
   throw lastError ?? new Error("Gemini request failed.");
+}
+
+/**
+ * Calls the Gemini Developer API and returns the raw text of the first
+ * candidate. When a responseSchema is provided we force JSON output so the
+ * caller can parse + validate it.
+ */
+export async function generateStructured({
+  system,
+  prompt,
+  responseSchema,
+}: GenerateOptions): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new AiNotConfiguredError();
+
+  const primaryModel = getGeminiModel();
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      responseMimeType: "application/json",
+      ...(responseSchema ? { responseSchema } : {}),
+    },
+  });
+
+  try {
+    return await callGeminiModel(primaryModel, apiKey, body);
+  } catch (error) {
+    const err = error as Error & { status?: number; detail?: string };
+    const canFallback =
+      primaryModel !== FALLBACK_GEMINI_MODEL &&
+      err.status === 404 &&
+      err.detail &&
+      isDeprecatedModelError(err.status, err.detail);
+
+    if (!canFallback) throw error;
+
+    console.warn(
+      `[ai] model "${primaryModel}" unavailable; falling back to ${FALLBACK_GEMINI_MODEL}`,
+    );
+    return callGeminiModel(FALLBACK_GEMINI_MODEL, apiKey, body);
+  }
 }
