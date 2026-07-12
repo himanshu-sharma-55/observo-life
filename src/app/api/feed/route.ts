@@ -23,17 +23,10 @@ export async function GET(request: Request) {
 
     await connectToDatabase();
 
-    const latestRun = await AnalysisRun.findOne({ userId }).sort({ createdAt: -1 }).lean();
-
-    if (!latestRun) {
-      return NextResponse.json({ scope, run: null, items: [] });
-    }
-
-    let items = await FeedItem.find({
+    const items = await FeedItem.find({
       userId,
       source: "ai",
       feedScope: scope,
-      analysisRunId: String(latestRun._id),
       dismissedAt: null,
     })
       .sort({ createdAt: -1 })
@@ -41,29 +34,23 @@ export async function GET(request: Request) {
       .limit(limit)
       .lean();
 
-    // Fallback for legacy items without run linkage
-    if (items.length === 0 && skip === 0) {
-      items = await FeedItem.find({
-        userId,
-        source: "ai",
-        feedScope: scope,
-        dismissedAt: null,
-      })
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .lean();
-    }
+    const runId = items[0]?.analysisRunId;
+    const runDoc = runId
+      ? await AnalysisRun.findById(runId).lean()
+      : await AnalysisRun.findOne({ userId }).sort({ createdAt: -1 }).lean();
 
     return NextResponse.json({
       scope,
-      run: {
-        id: String(latestRun._id),
-        sequence: latestRun.sequence,
-        createdAt: latestRun.createdAt,
-        periodStart: latestRun.periodStart,
-        periodEnd: latestRun.periodEnd,
-        overallWindowWeeks: latestRun.summary?.overallWeeks ?? 8,
-      },
+      run: runDoc
+        ? {
+            id: String(runDoc._id),
+            sequence: runDoc.sequence,
+            createdAt: runDoc.createdAt,
+            periodStart: runDoc.periodStart,
+            periodEnd: runDoc.periodEnd,
+            overallWindowWeeks: runDoc.summary?.overallWeeks ?? 8,
+          }
+        : null,
       items: items.map((item) => serializeFeedItem(item)),
       hasMore: hasMoreResults(items.length, limit),
     });

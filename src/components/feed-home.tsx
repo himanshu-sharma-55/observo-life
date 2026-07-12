@@ -174,9 +174,9 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
         toast("No new insights this time — keep logging.");
       } else {
         const parts: string[] = [];
-        if (aiOptions.includeCurrent) parts.push(`${current} current`);
-        if (aiOptions.includeOverall) parts.push(`${overall} overall`);
-        toast.success(`Added ${parts.join(" + ")} insights.`);
+        if (current > 0) parts.push(`${current} current`);
+        if (overall > 0) parts.push(`${overall} overall`);
+        toast.success(`Added ${parts.join(" + ")} insights. Check the ${current > 0 ? "current" : "overall"} tab.`);
       }
       setRefreshKey((key) => key + 1);
     } catch {

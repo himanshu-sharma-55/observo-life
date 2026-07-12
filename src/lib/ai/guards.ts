@@ -1,10 +1,8 @@
 import { connectToDatabase } from "@/lib/db";
-import { AnalysisRun, MonthRecap, UserSettings } from "@/lib/db/models";
+import { MonthRecap, UserSettings } from "@/lib/db/models";
 import {
   AI_LOCK_TTL_MS,
-  MAX_FEED_AI_PER_HOUR,
   MAX_RECAP_GENERATE_PER_HOUR,
-  MIN_FEED_COOLDOWN_MS,
 } from "@/lib/ai/constants";
 
 export class AiRateLimitError extends Error {
@@ -21,45 +19,9 @@ export class AiLockError extends Error {
   }
 }
 
-function formatWaitMinutes(ms: number) {
-  const minutes = Math.ceil(ms / 60_000);
-  return minutes <= 1 ? "1 minute" : `${minutes} minutes`;
-}
-
-export async function assertFeedAiAllowed(userId: string) {
+/** Kept for API compatibility — manual feed generation is not rate-limited. */
+export async function assertFeedAiAllowed(_userId: string) {
   await connectToDatabase();
-
-  const [settings, latestRun, recentHourCount] = await Promise.all([
-    UserSettings.findOne({ userId }).lean(),
-    AnalysisRun.findOne({ userId }).sort({ createdAt: -1 }).lean(),
-    AnalysisRun.countDocuments({
-      userId,
-      createdAt: { $gte: new Date(Date.now() - 60 * 60 * 1000) },
-    }),
-  ]);
-
-  if (recentHourCount >= MAX_FEED_AI_PER_HOUR) {
-    throw new AiRateLimitError("Too many AI insight requests this hour. Try again later.");
-  }
-
-  if (latestRun?.createdAt) {
-    const msSince = Date.now() - new Date(latestRun.createdAt).getTime();
-
-    if (msSince < MIN_FEED_COOLDOWN_MS) {
-      throw new AiRateLimitError(
-        `Please wait ${formatWaitMinutes(MIN_FEED_COOLDOWN_MS - msSince)} before generating again.`,
-      );
-    }
-
-    const intervalDays = Math.max(1, settings?.analysisIntervalDays ?? 7);
-    const intervalMs = intervalDays * 24 * 60 * 60 * 1000;
-    if (msSince < intervalMs) {
-      const daysLeft = Math.ceil((intervalMs - msSince) / (24 * 60 * 60 * 1000));
-      throw new AiRateLimitError(
-        `Your minimum interval is ${intervalDays} day${intervalDays === 1 ? "" : "s"}. Try again in about ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`,
-      );
-    }
-  }
 }
 
 export async function acquireFeedAiLock(userId: string): Promise<() => Promise<void>> {

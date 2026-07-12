@@ -8,7 +8,7 @@ import {
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRYABLE_STATUSES = new Set([500, 502, 503, 504]);
 
 export class AiNotConfiguredError extends Error {
   constructor() {
@@ -52,7 +52,7 @@ export function formatGeminiApiError(status: number, detail: string, model: stri
   }
 
   if (status === 429) {
-    return "Gemini API quota exceeded. Wait a few minutes and try again, or check your usage at ai.google.dev.";
+    return "Google AI rate limit hit. Wait a minute and try again — failed attempts do not use your Observolife quota.";
   }
 
   if (status === 403) {
@@ -179,17 +179,31 @@ export async function generateStructured({
     return await callGeminiModel(primaryModel, apiKey, body);
   } catch (error) {
     const err = error as Error & { status?: number; detail?: string };
-    const canFallback =
-      primaryModel !== FALLBACK_GEMINI_MODEL &&
-      err.status === 404 &&
-      err.detail &&
-      isDeprecatedModelError(err.status, err.detail);
 
-    if (!canFallback) throw error;
+    if (primaryModel !== FALLBACK_GEMINI_MODEL) {
+      if (
+        err.status === 404 &&
+        err.detail &&
+        isDeprecatedModelError(err.status, err.detail)
+      ) {
+        console.warn(
+          `[ai] model "${primaryModel}" unavailable; falling back to ${FALLBACK_GEMINI_MODEL}`,
+        );
+        return callGeminiModel(FALLBACK_GEMINI_MODEL, apiKey, body);
+      }
 
-    console.warn(
-      `[ai] model "${primaryModel}" unavailable; falling back to ${FALLBACK_GEMINI_MODEL}`,
-    );
-    return callGeminiModel(FALLBACK_GEMINI_MODEL, apiKey, body);
+      if (err.status === 429) {
+        console.warn(
+          `[ai] model "${primaryModel}" rate limited; trying ${FALLBACK_GEMINI_MODEL}`,
+        );
+        try {
+          return await callGeminiModel(FALLBACK_GEMINI_MODEL, apiKey, body);
+        } catch (fallbackError) {
+          throw error;
+        }
+      }
+    }
+
+    throw error;
   }
 }

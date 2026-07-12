@@ -1,8 +1,8 @@
 /** Minimum wait between feed AI runs (anti double-click / spam). */
-export const MIN_FEED_COOLDOWN_MS = 5 * 60 * 1000;
+export const MIN_FEED_COOLDOWN_MS = 30 * 1000;
 
-/** Hard cap on feed AI runs per user per hour. */
-export const MAX_FEED_AI_PER_HOUR = 6;
+/** @deprecated Feed AI is no longer hourly rate-limited. */
+export const MAX_FEED_AI_PER_HOUR = 30;
 
 /** Hard cap on recap generation attempts per user per hour. */
 export const MAX_RECAP_GENERATE_PER_HOUR = 3;
@@ -27,7 +27,7 @@ export const RECAP_MAX_MONTH_OVERALL_ITEMS = 20;
 
 export const GEMINI_TIMEOUT_MS = 60_000;
 export const GEMINI_MAX_OUTPUT_TOKENS = 4096;
-export const GEMINI_MAX_RETRIES = 2;
+export const GEMINI_MAX_RETRIES = 1;
 
 /**
  * Default model for feed insights and month recaps (override via GEMINI_MODEL).

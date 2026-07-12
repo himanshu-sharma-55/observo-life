@@ -157,14 +157,14 @@ export function SettingsForm({ showAiSettings = true }: { showAiSettings?: boole
       {showAiSettings ? (
       <section className="surface-card space-y-4 p-4 sm:space-y-5 sm:p-7">
         <div>
-          <h2 className="section-title">AI insights schedule</h2>
+          <h2 className="section-title">AI insights preferences</h2>
           <p className="section-subtitle">
-            Minimum days between manual AI insight runs when you tap &quot;AI insights&quot; on your feed.
+            Optional rhythm preferences for your logs. Generate insights anytime from the feed.
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="interval">Analysis interval (days)</Label>
+          <Label htmlFor="interval">Preferred rhythm (days)</Label>
           <Input
             id="interval"
             type="number"
@@ -182,7 +182,7 @@ export function SettingsForm({ showAiSettings = true }: { showAiSettings?: boole
             }
           />
           <p className="text-xs text-muted-foreground">
-            7 = weekly, 30 = monthly. Enforced on the server when you generate insights.
+            7 = weekly, 30 = monthly. Saved for reference — not enforced when you tap AI insights.
           </p>
         </div>
 

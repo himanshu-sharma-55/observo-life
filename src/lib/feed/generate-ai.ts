@@ -209,35 +209,52 @@ export async function generateAiFeed(
 
     let currentInsights: ReturnType<typeof filterEvidence> = [];
     let overallInsights: ReturnType<typeof filterEvidence> = [];
+    const generationErrors: string[] = [];
 
     if (runCurrent) {
-      const rawCurrent = await generateStructured({
-        system: CURRENT_SYSTEM,
-        prompt: buildCurrentPrompt(aggregates, priorCurrent, promptContext),
-        responseSchema: INSIGHTS_RESPONSE_SCHEMA,
-      });
-      const parsedCurrent = parseInsightsJson(rawCurrent);
-      const validCurrent = new Set(aggregates.currentEvents.map((e) => e.id));
-      currentInsights = filterEvidence(parsedCurrent.insights, validCurrent);
+      try {
+        const rawCurrent = await generateStructured({
+          system: CURRENT_SYSTEM,
+          prompt: buildCurrentPrompt(aggregates, priorCurrent, promptContext),
+          responseSchema: INSIGHTS_RESPONSE_SCHEMA,
+        });
+        const parsedCurrent = parseInsightsJson(rawCurrent);
+        const validCurrent = new Set(aggregates.currentEvents.map((e) => e.id));
+        currentInsights = filterEvidence(parsedCurrent.insights, validCurrent);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Current insights failed.";
+        generationErrors.push(message);
+        console.error("[ai] current insights failed", error);
+      }
     }
 
     if (runOverall) {
-      const rawOverall = await generateStructured({
-        system: OVERALL_SYSTEM,
-        prompt: buildOverallPrompt({
-          rollups,
-          hotInsights: hotOverall,
-          warmCompact,
-          context: promptContext,
-        }),
-        responseSchema: INSIGHTS_RESPONSE_SCHEMA,
-      });
-      const parsedOverall = parseInsightsJson(rawOverall);
-      const windowStart = startOfDay(subDays(new Date(), OVERALL_WEEKS * 7));
-      const windowEnd = endOfDay(new Date());
-      const windowEvents = await loadEventsForRange(userId, windowStart, windowEnd);
-      const validOverall = new Set(windowEvents.map((e) => e.id));
-      overallInsights = filterEvidence(parsedOverall.insights, validOverall);
+      try {
+        const rawOverall = await generateStructured({
+          system: OVERALL_SYSTEM,
+          prompt: buildOverallPrompt({
+            rollups,
+            hotInsights: hotOverall,
+            warmCompact,
+            context: promptContext,
+          }),
+          responseSchema: INSIGHTS_RESPONSE_SCHEMA,
+        });
+        const parsedOverall = parseInsightsJson(rawOverall);
+        const windowStart = startOfDay(subDays(new Date(), OVERALL_WEEKS * 7));
+        const windowEnd = endOfDay(new Date());
+        const windowEvents = await loadEventsForRange(userId, windowStart, windowEnd);
+        const validOverall = new Set(windowEvents.map((e) => e.id));
+        overallInsights = filterEvidence(parsedOverall.insights, validOverall);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Overall insights failed.";
+        generationErrors.push(message);
+        console.error("[ai] overall insights failed", error);
+      }
+    }
+
+    if (currentInsights.length === 0 && overallInsights.length === 0) {
+      throw new Error(generationErrors[0] ?? "Could not generate insights.");
     }
 
     const sequence = await getNextRunSequence(userId);
@@ -280,6 +297,10 @@ export async function generateAiFeed(
 
     let runId: string | undefined;
 
+    if (rows.length === 0) {
+      throw new Error("No insights were produced.");
+    }
+
     try {
       const run = await AnalysisRun.create({
         userId,
@@ -306,11 +327,7 @@ export async function generateAiFeed(
 
       runId = String(run._id);
 
-      if (rows.length > 0) {
-        await FeedItem.insertMany(
-          rows.map((row) => ({ ...row, analysisRunId: runId })),
-        );
-      }
+      await FeedItem.insertMany(rows.map((row) => ({ ...row, analysisRunId: runId })));
     } catch (error) {
       if (runId) {
         await AnalysisRun.deleteOne({ _id: runId }).catch(() => undefined);
