@@ -45,8 +45,10 @@ export const InsightSchema = z.object({
   evidenceEventIds: z.array(z.string()).default([]),
 });
 
+export const MAX_FEED_INSIGHTS = 10;
+
 export const InsightsSchema = z.object({
-  insights: z.array(InsightSchema).min(1).max(6),
+  insights: z.array(InsightSchema).min(1).max(MAX_FEED_INSIGHTS),
 });
 
 export function parseInsightsJson(raw: string) {

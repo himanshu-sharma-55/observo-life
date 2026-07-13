@@ -13,7 +13,8 @@ Structure each insight (required fields):
 - takeaway: optional but encouraged — one forward-looking line (under 20 words) that leaves the reader with direction or curiosity, not a command.`;
 
 export const INSIGHT_OUTPUT_RULES = `Output quality:
-- Return 3–4 insights (fewer, richer cards — not one-liner blurbs).
+- Return as many insights as the data genuinely supports — you decide the count. A quiet week might be 1–2; a rich period might be more. Never pad with filler.
+- Skip anything thin, repetitive, or that merely restates a single log line. Each card must earn its place.
 - Each card should read like a mini AI response: structured, multi-line, worth slowing down for.
 - Vary the shape: some lead with a surprise, some with a pattern, some with a reframe.
 - Do not collapse everything into a single sentence.`;

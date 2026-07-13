@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { AiThinkingOverlay } from "@/components/ai-thinking-overlay";
 import { FeedInsightPreview } from "@/components/feed-insight-preview";
 import {
   EventComposerSkeleton,
@@ -215,6 +216,8 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
 
   return (
     <>
+      <AiThinkingOverlay open={generating} />
+
       {showOnboarding && <OnboardingHint onDismiss={dismissOnboarding} />}
 
       <RecapHero
@@ -265,15 +268,10 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
             size="sm"
             onClick={openConfirmDialog}
             disabled={generating}
-            data-loading={generating ? "" : undefined}
             className="h-11 w-full touch-manipulation gap-1.5 sm:ml-auto sm:h-8 sm:w-auto"
           >
-            {generating ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="size-3.5" />
-            )}
-            {generating ? "Thinking…" : "AI insights"}
+            <Sparkles className="size-3.5" />
+            AI insights
           </Button>
           ) : null}
         </div>
@@ -368,7 +366,7 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
             <Button
               type="button"
               className="gap-1.5 sm:w-auto"
-              disabled={!canGenerate}
+              disabled={!canGenerate || generating}
               onClick={() => void generateInsights()}
             >
               <Sparkles className="size-3.5" />

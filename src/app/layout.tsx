@@ -4,6 +4,7 @@ import { OfflineSyncProvider } from "@/components/offline-sync-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppToaster } from "@/components/app-toaster";
 import { MobileInputScroll } from "@/components/mobile-input-scroll";
+import { INITIAL_THEME_SCRIPT } from "@/lib/theme/initial-theme-script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,11 +30,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1e2d4a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f8fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#141a24" },
+  ],
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-visual",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
@@ -45,9 +50,20 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full bg-canvas`}
     >
-      <body className="h-full overflow-hidden antialiased">
+      <head>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              html { background-color: #f7f8fa; color: #1a2332; }
+              html.dark { background-color: #141a24; color: #f5f7fa; }
+            `,
+          }}
+        />
+        <script dangerouslySetInnerHTML={{ __html: INITIAL_THEME_SCRIPT }} />
+      </head>
+      <body className="h-full overflow-hidden bg-canvas text-foreground antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
