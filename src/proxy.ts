@@ -6,16 +6,32 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   const isPublic =
+    pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth");
 
-  if (!isLoggedIn && !isPublic) {
+  const isAuthContinue = pathname.startsWith("/auth/continue");
+  const isSetPassword = pathname.startsWith("/set-password");
+
+  if (!isLoggedIn && !isPublic && !isSetPassword && !isAuthContinue) {
+    const loginUrl = new URL("/login", req.url);
+    if (pathname !== "/") {
+      loginUrl.searchParams.set("callbackUrl", pathname);
+    }
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (!isLoggedIn && (isSetPassword || isAuthContinue)) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   if (isLoggedIn && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
-    return NextResponse.redirect(new URL("/", req.url));
+    // Same rule as Google continue: missing password → ask, else feed.
+    if (req.auth?.needsPasswordSetup) {
+      return NextResponse.redirect(new URL("/set-password", req.url));
+    }
+    return NextResponse.redirect(new URL("/feed", req.url));
   }
 });
 

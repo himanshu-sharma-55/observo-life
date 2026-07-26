@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AiCreditsLabel,
+  BuyCreditsButton,
+  type AiCreditsInfo,
+} from "@/components/ai-credits";
 import { readApiError } from "@/lib/api/client";
 import {
   AlertDialog,
@@ -40,21 +45,36 @@ export function SettingsForm({ showAiSettings = true }: { showAiSettings?: boole
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [aiCredits, setAiCredits] = useState<AiCreditsInfo | null>(null);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
 
     try {
-      const response = await fetch("/api/settings");
-      if (!response.ok) {
-        throw new Error(await readApiError(response, "Could not load settings."));
+      const [settingsResponse, passwordResponse] = await Promise.all([
+        fetch("/api/settings"),
+        fetch("/api/account/password"),
+      ]);
+
+      if (!settingsResponse.ok) {
+        throw new Error(await readApiError(settingsResponse, "Could not load settings."));
       }
 
-      const data = await response.json();
+      const data = await settingsResponse.json();
       setSettings(data.settings ?? null);
       if (!data.settings) {
         throw new Error("Could not load settings.");
+      }
+
+      if (passwordResponse.ok) {
+        const passwordData = (await passwordResponse.json()) as { hasPassword?: boolean };
+        setHasPassword(Boolean(passwordData.hasPassword));
       }
     } catch (error) {
       setSettings(null);
@@ -64,9 +84,41 @@ export function SettingsForm({ showAiSettings = true }: { showAiSettings?: boole
     }
   }, []);
 
+  const loadAiCredits = useCallback(async () => {
+    if (!showAiSettings) {
+      setAiCredits(null);
+      return;
+    }
+    try {
+      const response = await fetch("/api/ai/status");
+      if (!response.ok) return;
+      const data = (await response.json()) as {
+        enabled?: boolean;
+        unlimited?: boolean;
+        credits?: number | null;
+        buyCreditsMailto?: string;
+      };
+      if (!data.enabled) {
+        setAiCredits(null);
+        return;
+      }
+      setAiCredits({
+        unlimited: Boolean(data.unlimited),
+        credits: data.unlimited ? null : (data.credits ?? 0),
+        buyCreditsMailto: data.buyCreditsMailto ?? "",
+      });
+    } catch {
+      // ignore
+    }
+  }, [showAiSettings]);
+
   useEffect(() => {
     void loadSettings();
   }, [loadSettings, reloadToken]);
+
+  useEffect(() => {
+    void loadAiCredits();
+  }, [loadAiCredits, reloadToken]);
 
   async function saveSettings() {
     if (!settings) return;
@@ -89,6 +141,50 @@ export function SettingsForm({ showAiSettings = true }: { showAiSettings?: boole
       toast.error("Could not reach the server.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function savePassword() {
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    if (hasPassword && !currentPassword) {
+      toast.error("Enter your current password.");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const response = await fetch("/api/account/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: hasPassword ? currentPassword : undefined,
+          password: newPassword,
+          confirm: confirmPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        toast.error(await readApiError(response, "Could not update password."));
+        return;
+      }
+
+      const data = (await response.json()) as { created?: boolean };
+      setHasPassword(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success(data.created ? "Password saved. You can sign in with email now." : "Password updated.");
+    } catch {
+      toast.error("Could not reach the server.");
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -154,6 +250,92 @@ export function SettingsForm({ showAiSettings = true }: { showAiSettings?: boole
 
   return (
     <div className="space-y-6">
+      <section className="surface-card space-y-4 p-4 sm:space-y-5 sm:p-7">
+        <div>
+          <h2 className="section-title">{hasPassword ? "Change password" : "Set password"}</h2>
+          <p className="section-subtitle">
+            {hasPassword
+              ? "Update the password you use for email sign-in."
+              : "Add a password so you can also sign in with email, not only Google."}
+          </p>
+        </div>
+
+        {hasPassword ? (
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Current password</Label>
+            <Input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              className="h-11 text-base sm:text-sm"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="new-password">{hasPassword ? "New password" : "Password"}</Label>
+          <Input
+            id="new-password"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            className="h-11 text-base sm:text-sm"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirm-password">Confirm password</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            className="h-11 text-base sm:text-sm"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
+
+        <Button
+          onClick={() => void savePassword()}
+          disabled={savingPassword}
+          className="h-11 w-full touch-manipulation sm:w-auto"
+        >
+          {savingPassword ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : hasPassword ? (
+            "Update password"
+          ) : (
+            "Save password"
+          )}
+        </Button>
+      </section>
+
+      {showAiSettings && aiCredits ? (
+        <section className="surface-card space-y-4 p-4 sm:space-y-5 sm:p-7">
+          <div>
+            <h2 className="section-title">AI credits</h2>
+            <p className="section-subtitle">
+              Each successful insight or month recap uses 1 credit. Failed runs do not.
+            </p>
+          </div>
+          <AiCreditsLabel info={aiCredits} className="text-sm" />
+          {!aiCredits.unlimited ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <BuyCreditsButton mailto={aiCredits.buyCreditsMailto} />
+              <p className="text-xs text-muted-foreground">
+                Opens an email draft so we can add credits to your account.
+              </p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {showAiSettings ? (
       <section className="surface-card space-y-4 p-4 sm:space-y-5 sm:p-7">
         <div>

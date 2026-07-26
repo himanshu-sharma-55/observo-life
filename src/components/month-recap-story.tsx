@@ -172,7 +172,7 @@ export function MonthRecapStory({ month }: { month: string }) {
           icon={CalendarHeart}
           title="Recap unavailable"
           description={error ?? "This month recap could not be loaded or does not exist yet."}
-          action={{ label: "Back to feed", href: "/" }}
+          action={{ label: "Back to feed", href: "/feed" }}
         />
       </div>
     );
@@ -186,7 +186,7 @@ export function MonthRecapStory({ month }: { month: string }) {
     <div className="relative flex min-h-dvh flex-col bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_50%),var(--canvas)]">
       <div className="flex items-center justify-between px-4 py-4">
         <Link
-          href="/"
+          href="/feed"
           aria-label="Close"
           className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
@@ -243,7 +243,7 @@ export function MonthRecapStory({ month }: { month: string }) {
           </Button>
         ) : (
           <Link
-            href="/"
+            href="/feed"
             className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
           >
             Back to feed

@@ -22,7 +22,7 @@ export default async function LoginPage({
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to continue observing the patterns in your life."
+      subtitle="Sign in with email and password, or continue with Google."
     >
       {error && (
         <div className="mb-6 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -33,7 +33,16 @@ export default async function LoginPage({
       <form action={loginUser} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" inputMode="email" enterKeyHint="next" required autoComplete="email" className="h-11" />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            inputMode="email"
+            enterKeyHint="next"
+            required
+            autoComplete="email"
+            className="h-11"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
@@ -58,7 +67,7 @@ export default async function LoginPage({
           href="/register"
           className="font-medium text-primary underline-offset-4 transition-colors hover:underline"
         >
-          Create an account
+          Sign up with Google
         </Link>
       </p>
     </AuthShell>

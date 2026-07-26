@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { requireAiUserId } from "@/lib/ai/access";
+import { requireAiUser } from "@/lib/ai/access";
 import { isAiConfigured } from "@/lib/ai/client";
+import {
+  assertAiCreditAvailable,
+  consumeAiCreditOnSuccess,
+} from "@/lib/ai/credits";
 import { aiRouteErrorResponse } from "@/lib/ai/route-errors";
 import { AiFeedOptionsSchema, DEFAULT_AI_FEED_OPTIONS } from "@/lib/feed/ai-options";
 import { generateAiFeed } from "@/lib/feed/generate-ai";
 
 export async function POST(request: Request) {
   try {
-    const userId = await requireAiUserId();
+    const { userId, email } = await requireAiUser();
 
     if (!isAiConfigured()) {
       return NextResponse.json(
@@ -16,6 +20,8 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
+
+    await assertAiCreditAvailable(userId, email);
 
     const body = await request.json().catch(() => ({}));
     const parsed = AiFeedOptionsSchema.safeParse(
@@ -37,12 +43,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const credits = await consumeAiCreditOnSuccess(userId, email);
+
     return NextResponse.json({
       currentInserted: result.currentInserted,
       overallInserted: result.overallInserted,
       inserted: result.currentInserted + result.overallInserted,
       runId: result.runId,
       sequence: result.sequence,
+      credits: {
+        unlimited: credits.unlimited,
+        remaining: credits.unlimited ? null : credits.credits,
+      },
     });
   } catch (error) {
     if (error instanceof Response) return error;

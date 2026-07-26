@@ -85,7 +85,7 @@ export default function RecapArchivePage() {
           icon={CalendarHeart}
           title="No recaps yet"
           description="Log through a month, then use Get month insights on your feed to generate your first story."
-          action={{ label: "Go to feed", href: "/" }}
+          action={{ label: "Go to feed", href: "/feed" }}
         />
       ) : (
         <ul className="space-y-3">

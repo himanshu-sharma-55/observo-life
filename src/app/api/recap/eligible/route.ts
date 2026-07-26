@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isAiConfigured } from "@/lib/ai/client";
-import { isEmailAiAllowed } from "@/lib/ai/access";
 import { requireUserId } from "@/lib/auth/session";
 import { getEligibleRecapMonth } from "@/lib/feed/generate-recap";
 
 export async function GET() {
   try {
     const userId = await requireUserId();
-    const session = await auth();
 
-    if (!isAiConfigured() || !isEmailAiAllowed(session?.user?.email)) {
+    if (!isAiConfigured()) {
       return NextResponse.json({ eligible: null });
     }
 

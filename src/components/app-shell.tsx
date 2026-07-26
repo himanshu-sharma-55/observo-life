@@ -27,7 +27,7 @@ const MobileMoreSheet = dynamic(
 );
 
 const sidebarNavItems = [
-  { href: "/", label: "Feed", icon: Home },
+  { href: "/feed", label: "Feed", icon: Home },
   ...MOBILE_PINNABLE_NAV.map((item) => ({
     href: item.href,
     label: item.label,
@@ -61,10 +61,10 @@ function getMobilePageTitle(pathname: string): string | null {
 
 function MobileHeaderBrand({ pathname }: { pathname: string }) {
   const pageTitle = getMobilePageTitle(pathname);
-  const isFeed = pathname === "/";
+  const isFeed = pathname === "/feed";
 
   return (
-    <Link href="/" className="flex min-w-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+    <Link href="/feed" className="flex min-w-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
       <BrandIcon variant="tile" size={26} />
       <p className="truncate text-[0.9375rem] font-medium tracking-[-0.01em] text-foreground">
         {isFeed ? "Observolife" : pageTitle}

@@ -18,8 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Observolife",
-  description: "A personal observation engine for your life.",
+  title: {
+    default: "Observolife",
+    template: "%s · Observolife",
+  },
+  description:
+    "A personal observation engine — log what happened and discover the patterns you're too close to see.",
   applicationName: "Observolife",
   appleWebApp: {
     capable: true,
@@ -50,7 +54,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full bg-canvas`}
+      className={`${geistSans.variable} ${geistMono.variable} min-h-full bg-canvas`}
     >
       <head>
         <style
@@ -63,7 +67,7 @@ export default function RootLayout({
         />
         <script dangerouslySetInnerHTML={{ __html: INITIAL_THEME_SCRIPT }} />
       </head>
-      <body className="h-full overflow-hidden bg-canvas text-foreground antialiased">
+      <body className="min-h-full bg-canvas text-foreground antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

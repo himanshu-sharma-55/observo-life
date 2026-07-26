@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAiUserId } from "@/lib/ai/access";
+import { requireAiUser } from "@/lib/ai/access";
 import { isAiConfigured } from "@/lib/ai/client";
+import {
+  assertAiCreditAvailable,
+  consumeAiCreditOnSuccess,
+} from "@/lib/ai/credits";
 import { aiRouteErrorResponse } from "@/lib/ai/route-errors";
 import { generateMonthRecap } from "@/lib/feed/generate-recap";
 
@@ -11,7 +15,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const userId = await requireAiUserId();
+    const { userId, email } = await requireAiUser();
 
     if (!isAiConfigured()) {
       return NextResponse.json(
@@ -26,12 +30,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid month" }, { status: 400 });
     }
 
-    const { recap, created } = await generateMonthRecap(userId, parsed.data.month);
+    // Existing recaps are free (no generation). Only check credits when we may create one.
+    const { recap, created } = await generateMonthRecap(userId, parsed.data.month, {
+      beforeGenerate: () => assertAiCreditAvailable(userId, email),
+    });
+
+    let credits = null;
+    if (created) {
+      const status = await consumeAiCreditOnSuccess(userId, email);
+      credits = {
+        unlimited: status.unlimited,
+        remaining: status.unlimited ? null : status.credits,
+      };
+    }
 
     return NextResponse.json({
       recap,
       created,
       month: parsed.data.month,
+      credits,
     });
   } catch (error) {
     if (error instanceof Response) return error;

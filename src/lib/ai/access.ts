@@ -7,7 +7,8 @@ export class AiAccessError extends Error {
   }
 }
 
-function parseAllowedEmails(): string[] {
+/** Emails in AI_ALLOWED_EMAILS get unlimited AI credits (owner / staff). */
+function parseUnlimitedEmails(): string[] {
   const raw = process.env.AI_ALLOWED_EMAILS;
   if (!raw?.trim()) return [];
 
@@ -17,25 +18,26 @@ function parseAllowedEmails(): string[] {
     .filter(Boolean);
 }
 
-export function isAiAllowlistEnabled() {
-  return parseAllowedEmails().length > 0;
-}
-
-export function isEmailAiAllowed(email: string | null | undefined) {
-  const allowed = parseAllowedEmails();
-  if (allowed.length === 0) return true;
+export function isEmailAiUnlimited(email: string | null | undefined) {
+  const unlimited = parseUnlimitedEmails();
+  if (unlimited.length === 0) return false;
 
   const normalized = email?.trim().toLowerCase();
   if (!normalized) return false;
 
-  return allowed.includes(normalized);
+  return unlimited.includes(normalized);
 }
 
-export function isAiEnabledForUser(email: string | null | undefined, configured: boolean) {
-  return configured && isEmailAiAllowed(email);
+/** @deprecated Use isEmailAiUnlimited — kept for older call sites during migration. */
+export function isEmailAiAllowed(_email: string | null | undefined) {
+  return true;
 }
 
-export async function requireAiUserId() {
+export function isAiEnabledForUser(_email: string | null | undefined, configured: boolean) {
+  return configured;
+}
+
+export async function requireAiUser() {
   const session = await auth();
   if (!session?.user?.id) {
     throw new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -44,18 +46,19 @@ export async function requireAiUserId() {
     });
   }
 
-  if (!isEmailAiAllowed(session.user.email)) {
-    throw new Response(JSON.stringify({ error: new AiAccessError().message }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  return session.user.id;
+  return {
+    userId: session.user.id,
+    email: session.user.email ?? null,
+  };
 }
 
-export async function assertAiAccess(email: string | null | undefined) {
-  if (!isEmailAiAllowed(email)) {
-    throw new AiAccessError();
-  }
+/** @deprecated Prefer requireAiUser() for credit-aware routes. */
+export async function requireAiUserId() {
+  const { userId } = await requireAiUser();
+  return userId;
+}
+
+export async function assertAiAccess(_email: string | null | undefined) {
+  // AI is available to any signed-in user when GEMINI is configured.
+  // Credits are enforced separately.
 }

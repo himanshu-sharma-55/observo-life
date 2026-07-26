@@ -153,13 +153,13 @@
   }
 
   html {
-    @apply h-full scroll-smooth font-sans antialiased;
+    @apply min-h-full scroll-smooth font-sans antialiased;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply min-h-full bg-canvas text-foreground;
+    @apply min-h-full overflow-x-hidden bg-canvas text-foreground;
     letter-spacing: -0.011em;
   }
 
@@ -486,5 +486,33 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+.marketing-root {
+  scroll-behavior: smooth;
+}
+
+html:has(.marketing-root) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: auto;
+}
+
+html:has(.marketing-root),
+html:has(.marketing-root) body {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+@media (max-width: 639px) {
+  .marketing-root {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .marketing-frame {
+    max-width: 100%;
   }
 }

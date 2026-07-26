@@ -12,6 +12,12 @@ import {
 } from "@/components/lazy-loading-skeletons";
 import { OnboardingHint } from "@/components/onboarding-hint";
 import { RecapHero } from "@/components/recap-hero";
+import {
+  AiCreditsLabel,
+  BuyCreditsButton,
+  openBuyCreditsEmail,
+  type AiCreditsInfo,
+} from "@/components/ai-credits";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -124,12 +130,41 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [eligibleRecap, setEligibleRecap] = useState<EligibleRecap | null>(null);
   const [aiOptions, setAiOptions] = useState<AiFeedOptions>(DEFAULT_AI_FEED_OPTIONS);
+  const [aiCredits, setAiCredits] = useState<AiCreditsInfo | null>(null);
 
   const canGenerate = aiOptions.includeCurrent || aiOptions.includeOverall;
+  const outOfCredits =
+    Boolean(aiEnabled) &&
+    aiCredits !== null &&
+    !aiCredits.unlimited &&
+    (aiCredits.credits ?? 0) <= 0;
 
   const handleFeedLoadingChange = useCallback((loading: boolean) => {
     setFeedLoading(loading);
   }, []);
+
+  const loadAiCredits = useCallback(async () => {
+    if (!aiEnabled) {
+      setAiCredits(null);
+      return;
+    }
+    try {
+      const response = await fetch("/api/ai/status");
+      if (!response.ok) return;
+      const data = (await response.json()) as {
+        unlimited?: boolean;
+        credits?: number | null;
+        buyCreditsMailto?: string;
+      };
+      setAiCredits({
+        unlimited: Boolean(data.unlimited),
+        credits: data.unlimited ? null : (data.credits ?? 0),
+        buyCreditsMailto: data.buyCreditsMailto ?? "",
+      });
+    } catch {
+      // ignore
+    }
+  }, [aiEnabled]);
 
   const loadEligible = useCallback(async () => {
     try {
@@ -143,6 +178,11 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
   }, []);
 
   async function generateInsights() {
+    if (outOfCredits && aiCredits?.buyCreditsMailto) {
+      openBuyCreditsEmail(aiCredits.buyCreditsMailto);
+      return;
+    }
+
     if (!canGenerate) {
       toast.error("Select at least one insight type.");
       return;
@@ -159,13 +199,39 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
       });
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
+        code?: string;
         currentInserted?: number;
         overallInserted?: number;
+        credits?: { unlimited?: boolean; remaining?: number | null };
       };
 
       if (!response.ok) {
+        if (data.code === "ai_credits" && aiCredits?.buyCreditsMailto) {
+          toast.error(data.error?.trim() || "Out of AI credits.", {
+            action: {
+              label: "Get more",
+              onClick: () => openBuyCreditsEmail(aiCredits.buyCreditsMailto),
+            },
+          });
+          void loadAiCredits();
+          return;
+        }
         toast.error(data.error?.trim() || "Could not generate insights.");
         return;
+      }
+
+      if (data.credits) {
+        setAiCredits((current) =>
+          current
+            ? {
+                ...current,
+                unlimited: Boolean(data.credits?.unlimited),
+                credits: data.credits?.unlimited ? null : (data.credits?.remaining ?? 0),
+              }
+            : current,
+        );
+      } else {
+        void loadAiCredits();
       }
 
       const current = data.currentInserted ?? 0;
@@ -192,6 +258,10 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
   }
 
   function openConfirmDialog() {
+    if (outOfCredits && aiCredits?.buyCreditsMailto) {
+      openBuyCreditsEmail(aiCredits.buyCreditsMailto);
+      return;
+    }
     setAiOptions(loadStoredAiOptions());
     setConfirmOpen(true);
   }
@@ -203,7 +273,8 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
       setShowOnboarding(false);
     }
     void loadEligible();
-  }, [loadEligible]);
+    void loadAiCredits();
+  }, [loadEligible, loadAiCredits]);
 
   function dismissOnboarding() {
     setShowOnboarding(false);
@@ -223,8 +294,10 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
       <RecapHero
         eligible={eligibleRecap}
         aiEnabled={aiEnabled}
+        aiCredits={aiCredits}
         onGenerated={() => {
           void loadEligible();
+          void loadAiCredits();
         }}
       />
 
@@ -263,16 +336,26 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
           </div>
           <div className="h-px min-w-0 flex-1 bg-border max-sm:hidden" />
           {aiEnabled ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openConfirmDialog}
-            disabled={generating}
-            className="h-11 w-full touch-manipulation gap-1.5 sm:ml-auto sm:h-8 sm:w-auto"
-          >
-            <Sparkles className="size-3.5" />
-            AI insights
-          </Button>
+            <div className="flex w-full flex-col gap-1.5 sm:ml-auto sm:w-auto sm:items-end">
+              {outOfCredits && aiCredits?.buyCreditsMailto ? (
+                <BuyCreditsButton
+                  mailto={aiCredits.buyCreditsMailto}
+                  className="h-11 w-full touch-manipulation sm:h-8 sm:w-auto"
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openConfirmDialog}
+                  disabled={generating}
+                  className="h-11 w-full touch-manipulation gap-1.5 sm:h-8 sm:w-auto"
+                >
+                  <Sparkles className="size-3.5" />
+                  AI insights
+                </Button>
+              )}
+              <AiCreditsLabel info={aiCredits} className="text-center sm:text-right" />
+            </div>
           ) : null}
         </div>
         <FeedList
@@ -355,6 +438,8 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
             />
           </div>
 
+          <AiCreditsLabel info={aiCredits} />
+
           <AlertDialogFooter>
             <AlertDialogCancel
               render={
@@ -366,7 +451,7 @@ export function FeedHome({ aiEnabled }: { aiEnabled: boolean }) {
             <Button
               type="button"
               className="gap-1.5 sm:w-auto"
-              disabled={!canGenerate || generating}
+              disabled={!canGenerate || generating || outOfCredits}
               onClick={() => void generateInsights()}
             >
               <Sparkles className="size-3.5" />

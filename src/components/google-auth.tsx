@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { loginWithGoogle } from "@/lib/auth/actions";
+import { cn } from "@/lib/utils";
 
 function GoogleIcon() {
   return (
@@ -24,22 +25,40 @@ function GoogleIcon() {
   );
 }
 
-export function GoogleAuth({ label }: { label: string }) {
-  if (process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "true") return null;
+export function GoogleAuth({
+  label,
+  showDivider = true,
+  className,
+}: {
+  label: string;
+  showDivider?: boolean;
+  className?: string;
+}) {
+  if (process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "true") {
+    return (
+      <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+        Google sign-in is not enabled yet. Set{" "}
+        <code className="text-xs">NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true</code> and your Google
+        OAuth keys.
+      </p>
+    );
+  }
 
   return (
-    <>
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-xs text-muted-foreground">or</span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
+    <div className={cn(className)}>
+      {showDivider ? (
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+      ) : null}
       <form action={loginWithGoogle}>
-        <Button type="submit" variant="outline" size="lg" className="w-full gap-2.5">
+        <Button type="submit" variant="outline" size="lg" className="h-11 w-full gap-2.5">
           <GoogleIcon />
           {label}
         </Button>
       </form>
-    </>
+    </div>
   );
 }

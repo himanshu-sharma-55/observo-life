@@ -6,6 +6,14 @@ import bcrypt from "bcryptjs";
 import type { Provider } from "next-auth/providers";
 import { clientPromise, connectToDatabase, DB_NAME } from "@/lib/db";
 import { User, UserSettings } from "@/lib/db/models";
+import { FREE_AI_CREDITS } from "@/lib/ai/constants";
+
+async function userNeedsPasswordSetup(userId: string) {
+  await connectToDatabase();
+  const user = await User.findById(userId).select("passwordHash").lean();
+  // Ask whenever a password is missing — Skip only defers for this visit, not forever.
+  return Boolean(user) && !user?.passwordHash;
+}
 
 const providers: Provider[] = [
   Credentials({
@@ -59,6 +67,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user?.id) {
         token.sub = user.id;
+        token.needsPasswordSetup = await userNeedsPasswordSetup(user.id);
+      } else if (token.sub && token.needsPasswordSetup === undefined) {
+        token.needsPasswordSetup = await userNeedsPasswordSetup(token.sub);
       }
       return token;
     },
@@ -66,7 +77,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.sub) {
         session.user.id = token.sub;
       }
+      session.needsPasswordSetup = Boolean(token.needsPasswordSetup);
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Keep relative post-login targets (e.g. /auth/continue) on this host.
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      return baseUrl;
     },
     async signIn({ user, account }) {
       if (!user.id) return true;
@@ -77,6 +99,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!settings) {
         await UserSettings.create({ userId: user.id });
       }
+
+      await User.updateOne(
+        {
+          _id: user.id,
+          $or: [{ aiCredits: { $exists: false } }, { aiCredits: null }],
+        },
+        { $set: { aiCredits: FREE_AI_CREDITS } },
+      );
 
       if (account?.provider === "google" && user.email) {
         await User.updateOne({ _id: user.id }, { $set: { emailVerified: new Date() } });

@@ -372,7 +372,7 @@ export function EventTimeline() {
           action={
             hasFilters
               ? { label: "Clear", onClick: clearFilters }
-              : { label: "Go to feed", href: "/" }
+              : { label: "Go to feed", href: "/feed" }
           }
         />
       ) : (

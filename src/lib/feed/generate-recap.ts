@@ -32,13 +32,19 @@ import {
 
 export const MIN_EVENTS_FOR_RECAP = 5;
 
-export async function generateMonthRecap(userId: string, monthKey: string) {
+export async function generateMonthRecap(
+  userId: string,
+  monthKey: string,
+  options?: { beforeGenerate?: () => Promise<unknown> },
+) {
   await connectToDatabase();
 
   const existing = await MonthRecap.findOne({ userId, month: monthKey }).lean();
   if (existing?.headline) {
     return { recap: existing, created: false };
   }
+
+  await options?.beforeGenerate?.();
 
   await assertRecapGenerateAllowed(userId);
   const releaseLock = await acquireRecapGenerationLock(userId, monthKey);

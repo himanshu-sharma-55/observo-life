@@ -6,6 +6,8 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
     };
+    /** True until the user sets a password after Google signup. */
+    needsPasswordSetup?: boolean;
   }
 
   interface User {
@@ -16,6 +18,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     sub?: string;
+    needsPasswordSetup?: boolean;
   }
 }
 

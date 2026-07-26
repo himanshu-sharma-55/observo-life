@@ -7,6 +7,10 @@ export interface UserDoc {
   emailVerified?: Date | null;
   image?: string | null;
   passwordHash?: string | null;
+  /** User chose to set an email password later (Settings). */
+  passwordSetupDeferred?: boolean | null;
+  /** Remaining successful AI generations. Unlimited accounts ignore this. */
+  aiCredits?: number | null;
   createdAt: Date;
 }
 
@@ -17,6 +21,8 @@ const userSchema = new Schema<UserDoc>(
     emailVerified: { type: Date, default: null },
     image: { type: String, default: null },
     passwordHash: { type: String, default: null },
+    passwordSetupDeferred: { type: Boolean, default: false },
+    aiCredits: { type: Number, default: null },
     createdAt: { type: Date, default: Date.now },
   },
   // strict:false so fields written by the Auth.js adapter are preserved.

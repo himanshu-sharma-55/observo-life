@@ -1,3 +1,6 @@
+/** Free AI attempts for new accounts. Only successful generations consume a credit. */
+export const FREE_AI_CREDITS = 2;
+
 /** Minimum wait between feed AI runs (anti double-click / spam). */
 export const MIN_FEED_COOLDOWN_MS = 30 * 1000;
 

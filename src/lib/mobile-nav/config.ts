@@ -17,7 +17,7 @@ export type MobileNavItem = {
   icon: LucideIcon;
 };
 
-export const MOBILE_HOME_HREF = "/";
+export const MOBILE_HOME_HREF = "/feed";
 
 export const MOBILE_HOME_NAV: MobileNavItem = {
   href: MOBILE_HOME_HREF,

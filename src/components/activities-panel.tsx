@@ -212,7 +212,7 @@ export function ActivitiesPanel() {
             icon={Bookmark}
             title="No saved activities yet"
             description="Save routines you log often. They'll show up when you compose events on the feed."
-            action={{ label: "Go to feed", href: "/" }}
+            action={{ label: "Go to feed", href: "/feed" }}
           />
         ) : (
           activities.map((activity, index) => {

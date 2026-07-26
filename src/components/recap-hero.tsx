@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarHeart, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import {
+  BuyCreditsButton,
+  openBuyCreditsEmail,
+  type AiCreditsInfo,
+} from "@/components/ai-credits";
 import { AiThinkingOverlay } from "@/components/ai-thinking-overlay";
 import { Button } from "@/components/ui/button";
 
@@ -24,10 +29,12 @@ type EligibleRecap = {
 export function RecapHero({
   eligible,
   aiEnabled,
+  aiCredits,
   onGenerated,
 }: {
   eligible: EligibleRecap | null;
   aiEnabled: boolean;
+  aiCredits?: AiCreditsInfo | null;
   onGenerated?: () => void;
 }) {
   const router = useRouter();
@@ -35,9 +42,21 @@ export function RecapHero({
 
   if (!eligible || !aiEnabled) return null;
 
+  const outOfCredits =
+    !eligible.generated &&
+    aiCredits !== null &&
+    aiCredits !== undefined &&
+    !aiCredits.unlimited &&
+    (aiCredits.credits ?? 0) <= 0;
+
   async function handleAction() {
     if (eligible!.generated) {
       router.push(`/recap/${eligible!.month}`);
+      return;
+    }
+
+    if (outOfCredits && aiCredits?.buyCreditsMailto) {
+      openBuyCreditsEmail(aiCredits.buyCreditsMailto);
       return;
     }
 
@@ -48,9 +67,22 @@ export function RecapHero({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ month: eligible!.month }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        code?: string;
+      };
 
       if (!response.ok) {
+        if (data.code === "ai_credits" && aiCredits?.buyCreditsMailto) {
+          toast.error(data.error?.trim() || "Out of AI credits.", {
+            action: {
+              label: "Get more",
+              onClick: () => openBuyCreditsEmail(aiCredits.buyCreditsMailto),
+            },
+          });
+          onGenerated?.();
+          return;
+        }
         toast.error(data.error?.trim() || "Could not generate month insights.");
         return;
       }
@@ -83,19 +115,25 @@ export function RecapHero({
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground md:text-sm">
               {eligible.generated
                 ? "Your month insights are ready to explore."
-                : `Get month insights — stats and patterns you might have missed${
-                    eligible.eventCount ? ` (${eligible.eventCount} events)` : ""
-                  }.`}
+                : outOfCredits
+                  ? "You need an AI credit to generate this month recap."
+                  : `Get month insights — stats and patterns you might have missed${
+                      eligible.eventCount ? ` (${eligible.eventCount} events)` : ""
+                    }.`}
             </p>
-            <Button
-              size="sm"
-              className="mt-3 gap-1.5"
-              onClick={handleAction}
-              disabled={generating}
-            >
-              <Sparkles className="size-3.5" />
-              {eligible.generated ? "View recap" : "Get month insights"}
-            </Button>
+            {outOfCredits && aiCredits?.buyCreditsMailto ? (
+              <BuyCreditsButton mailto={aiCredits.buyCreditsMailto} className="mt-3" />
+            ) : (
+              <Button
+                size="sm"
+                className="mt-3 gap-1.5"
+                onClick={handleAction}
+                disabled={generating}
+              >
+                <Sparkles className="size-3.5" />
+                {eligible.generated ? "View recap" : "Get month insights"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
