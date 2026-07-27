@@ -34,12 +34,17 @@ export function GoogleAuth({
   showDivider?: boolean;
   className?: string;
 }) {
-  if (process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "true") {
+  // Same gate as the Google provider in auth/index.ts (server env, not NEXT_PUBLIC).
+  const googleConfigured = Boolean(
+    process.env.AUTH_GOOGLE_ID?.trim() && process.env.AUTH_GOOGLE_SECRET?.trim(),
+  );
+
+  if (!googleConfigured) {
     return (
       <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        Google sign-in is not enabled yet. Set{" "}
-        <code className="text-xs">NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true</code> and your Google
-        OAuth keys.
+        Google sign-in is not configured. Add{" "}
+        <code className="text-xs">AUTH_GOOGLE_ID</code> and{" "}
+        <code className="text-xs">AUTH_GOOGLE_SECRET</code> in your environment, then redeploy.
       </p>
     );
   }
