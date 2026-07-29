@@ -5,7 +5,7 @@ import {
   Compass,
   FlaskConical,
   Home,
-  Search,
+  Sparkles,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -42,9 +42,9 @@ export const MOBILE_PINNABLE_NAV: MobileNavItem[] = [
   },
   {
     href: "/search",
-    label: "Search",
-    description: "Find events across your log",
-    icon: Search,
+    label: "LifeGPT",
+    description: "Ask AI about your life from your logs",
+    icon: Sparkles,
   },
   {
     href: "/wants",

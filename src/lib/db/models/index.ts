@@ -20,3 +20,8 @@ export {
   type RecapInsight,
   type RecapSection,
 } from "./month-recap";
+export {
+  LifeGptSaved,
+  type LifeGptSavedDoc,
+  type LifeGptSavedEvidence,
+} from "./lifegpt-saved";

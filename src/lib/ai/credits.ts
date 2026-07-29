@@ -85,6 +85,50 @@ export async function assertAiCreditAvailable(
   return status;
 }
 
+/**
+ * Atomically reserve one credit before an AI call.
+ * Call refundAiCredit if generation fails after a successful reserve.
+ */
+export async function reserveAiCredit(
+  userId: string,
+  email: string | null | undefined,
+): Promise<{ unlimited: boolean; credits: number; reserved: boolean }> {
+  if (isEmailAiUnlimited(email)) {
+    return { unlimited: true, credits: Number.POSITIVE_INFINITY, reserved: false };
+  }
+
+  await connectToDatabase();
+  await ensureCreditsInitialized(userId);
+
+  const updated = await User.findOneAndUpdate(
+    { _id: userId, aiCredits: { $gt: 0 } },
+    { $inc: { aiCredits: -1 } },
+    { new: true },
+  )
+    .select("aiCredits")
+    .lean();
+
+  if (!updated) {
+    throw new AiCreditsError();
+  }
+
+  const credits =
+    typeof updated.aiCredits === "number" ? Math.max(0, Math.floor(updated.aiCredits)) : 0;
+
+  return { unlimited: false, credits, reserved: true };
+}
+
+export async function refundAiCredit(
+  userId: string,
+  email: string | null | undefined,
+  reserved: boolean,
+) {
+  if (!reserved || isEmailAiUnlimited(email)) return;
+
+  await connectToDatabase();
+  await User.updateOne({ _id: userId }, { $inc: { aiCredits: 1 } });
+}
+
 /** Deduct one credit only after a successful AI run. No-op for unlimited accounts. */
 export async function consumeAiCreditOnSuccess(
   userId: string,

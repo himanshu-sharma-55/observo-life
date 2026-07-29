@@ -49,7 +49,7 @@ function getMobilePageTitle(pathname: string): string | null {
     "/activities": "Activities",
     "/wants": "Wants",
     "/hypotheses": "Beliefs",
-    "/search": "Search",
+    "/search": "LifeGPT",
     "/recap": "Recaps",
     "/settings": "Settings",
   };
